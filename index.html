@@ -240,7 +240,7 @@ select.oculto{display:none}
 .carga-persona summary{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.9rem}
 .carga-persona ul{margin:6px 0 0 18px;padding:0;font-size:.85rem;color:var(--muted)}
 .carga-barra{flex:1 1 100%;height:6px;background:var(--line);border-radius:3px;overflow:hidden}.carga-barra i{display:block;height:100%}
-.lugar-nombre{font:600 9px var(--body);fill:#f2d06b;paint-order:stroke;stroke:#0e1116;stroke-width:3px;pointer-events:none}
+.sectores-mundo{margin-top:10px}.sectores-mundo svg{display:block;margin:0 auto}.sec-hex{stroke:#0b0e13;stroke-width:1.2;cursor:pointer}.sec-hex.rec{stroke:#c9d4e3;stroke-width:1.6}.sec-hex.sel{stroke:var(--acento,#8b7cf6);stroke-width:3}.sec-hex.niebla{fill:#0b0f15;cursor:default}.sec-nombre{font:600 10px var(--body);fill:#f2d06b;paint-order:stroke;stroke:#0e1116;stroke-width:3px;pointer-events:none;text-anchor:middle}.rio-mundo{stroke:#6cb6ff;stroke-width:1.6;fill:none;pointer-events:none;opacity:.85}.sitio-mundo{fill:none;stroke:#f2d06b;stroke-width:1.6;pointer-events:none}.lugar-nombre{font:600 9px var(--body);fill:#f2d06b;paint-order:stroke;stroke:#0e1116;stroke-width:3px;pointer-events:none}
 .lugar-piso{fill:#f2d06b;stroke:#0b0e13;stroke-width:1.2;pointer-events:none}
 .anotado-piso{fill:none;stroke:#e0a458;stroke-width:2;stroke-dasharray:3 2;pointer-events:none}
 .pos-piso{fill:var(--acento,#8b7cf6);stroke:#fff;stroke-width:2;pointer-events:none}
@@ -489,9 +489,10 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
   </section>
 
   <section class="panel" id="panelPiso" hidden>
-    <div class="eyebrow" id="tituloPiso">Piso</div>
+    <div class="eyebrow" id="tituloPiso">Mundo</div>
     <div class="estado" id="provPiso"></div>
-    <div id="mapaPiso" aria-label="Mapa del piso: lo que ya viste"></div>
+    <div id="mapaPiso" aria-label="Mapa del mundo: lo que ya conocen"></div>
+    <div class="sectores-mundo" id="sectoresMundo" aria-label="Sectores del hex elegido"></div>
     <div class="ley-piso" id="leyPiso"></div>
     <div class="lugares-piso-lista" id="lugaresPiso" role="group" aria-label="Lugares conocidos del mapa"></div>
     <details class="carga" id="cargaPiso" hidden><summary class="eyebrow" id="cargaResumen">Carga</summary><div id="cargaDetalle"></div></details>
@@ -504,17 +505,12 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
     <label for="ritmoPiso">Ritmo<select id="ritmoPiso">
       <option value="rapido">Rápido (−5 a la Percepción pasiva)</option><option value="normal" selected>Normal</option>
       <option value="lento">Lento</option><option value="sigilo">Lento, con sigilo</option></select></label>
-    <label for="actividadPiso">Qué hace tu personaje mientras marchan<select id="actividadPiso">
-      <option value="vigilar">Vigilar (su Percepción pasiva cuenta para notar lo que pasa)</option>
-      <option value="navegar">Navegar</option><option value="cartografiar">Cartografiar</option><option value="rastrear">Rastrear</option>
-      <option value="forrajear">Forrajear comida y agua (ritmo normal o lento)</option>
-      <option value="juntar_lena">Juntar leña (si el camino pasa por terreno con madera)</option></select></label>
-    <div class="estado" id="infoPiso">Toca un hexágono que ya viste para ver qué cuesta llegar.</div>
+    <div class="estado" id="infoPiso">Toca un hex o un sector que ya conozcan para ver qué cuesta llegar.</div>
     <label for="textoPiso">Lo que tu personaje hace y dice (opcional)<textarea id="textoPiso" rows="3"></textarea></label>
     <button id="irPiso" disabled>Confirmar traslado</button>
     <button class="sec" id="soloTextoPiso">Confirmar texto</button>
-    <div class="eyebrow" style="margin-top:14px">Buscar donde están</div>
-    <label for="horasBuscar">Cuánto tiempo<select id="horasBuscar"><option value="1">Una hora</option><option value="2">Dos horas</option><option value="4">Cuatro horas</option></select></label>
+    <div class="eyebrow" style="margin-top:14px">Buscar en el sector donde están</div>
+    <label for="horasBuscar">Cuánto tiempo<select id="horasBuscar"><option value="1">Una hora</option><option value="2">Dos horas</option><option value="4">Cuatro horas</option><option value="8">Ocho horas</option></select></label>
     <div class="estado" id="infoBuscar"></div>
     <button class="sec" id="buscarPiso">Confirmar búsqueda</button>
     <div class="eyebrow" style="margin-top:14px">Descansar</div>
@@ -635,7 +631,7 @@ function pintar(e){
   pintarAuto();
   pintarCombate(e.combate||null);
   pintarSubida(e.subida||null);
-  pintarPiso(e.combate?null:(e.exploracion||null));
+  pintarPiso(e.combate?null:(e.mundo||null));
   pintarEquipo(e.equipo||null);
   pintarDerrotados(e.derrotados||null);
   hojaPJ=e.hoja||null; $("abrirHoja").hidden=!hojaPJ; if(!$("hoja").hidden)pintarHoja();
@@ -735,73 +731,67 @@ function pintarHoja(){
   if(P.classList.contains("gotas"))requestAnimationFrame(()=>salpicar(P));
 }
 
-// ---- Exploración de piso (DGT-207, fase 1) ----
-// Solo llega lo visto: terreno de cada hexágono visto, lo recorrido y dónde está la cuadrilla.
-// Hexágonos de techo plano, columnas impares desplazadas (como tools/mapas_pisos.py).
-let piso=null, selPiso=null;
-// Preselección: la misma ruta que calcula el motor (solo por lo ya visto, nadar y trepar sí, el ritmo
-// multiplica el tiempo) y sus costos: horas, hora de llegada, horas de marcha del día y marcha forzada.
-function rutaPiso(p,desde,hasta,ritmo){
-  const k=h=>h[0]+","+h[1], terr={}; p.hexes.forEach(([c,r,t])=>terr[c+","+r]=t);
-  const pasa=t=>t&&p.terrenos[t].min!=null&&(!p.terrenos[t].requiere||p.capacidades.includes(p.terrenos[t].requiere));
-  const vec=([c,r])=>{const q=c,rr=r-((c-(c&1))>>1);return[[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]].map(([dq,dr])=>{const Q=q+dq,R=rr+dr;return[Q,R+((Q-(Q&1))>>1)]})};
-  const enl={}; (p.enlaces||[]).forEach(([c1,r1,c2,r2,min,sent,req])=>{if(req&&!p.capacidades.includes(req))return;
-    (enl[c1+","+r1]=enl[c1+","+r1]||[]).push([[c2,r2],min/60]);if(sent==="ambos")(enl[c2+","+r2]=enl[c2+","+r2]||[]).push([[c1,r1],min/60])});
-  const dist={[k(desde)]:0},prev={},cola=[[0,desde]];
-  while(cola.length){cola.sort((a,b)=>a[0]-b[0]);const [d,h]=cola.shift();if(k(h)===k(hasta))break;if(d>dist[k(h)])continue;
-    const pasos=vec(h).filter(n=>pasa(terr[k(n)])).map(n=>[n,p.terrenos[terr[k(n)]].min/60]).concat((enl[k(h)]||[]).filter(([n])=>pasa(terr[k(n)])));
-    for(const [n,c] of pasos){const nd=d+c;if(nd<(dist[k(n)]??Infinity)){dist[k(n)]=nd;prev[k(n)]=h;cola.push([nd,n])}}}
-  if(dist[k(hasta)]==null)return null;
-  const camino=[hasta];while(k(camino[0])!==k(desde))camino.unshift(prev[k(camino[0])]);
-  const f=p.ritmos[ritmo].factor, req=new Set(camino.slice(1).map(h=>p.terrenos[terr[k(h)]].requiere).filter(Boolean));
-  camino.slice(1).forEach((h,i)=>{const a=camino[i];(p.enlaces||[]).forEach(([c1,r1,c2,r2,min,sent,rq])=>{
-    if(rq&&((k(a)===c1+","+r1&&k(h)===c2+","+r2)||(sent==="ambos"&&k(a)===c2+","+r2&&k(h)===c1+","+r1)))req.add(rq)})});
-  return{horas:dist[k(hasta)]*f,hexes:camino.length-1,requiere:[...req]};
-}
+// ---- Mapa del mundo (DCL-010) ----
+// Solo llega lo conocido: terreno de los hexes vistos y de sus sectores, agua visible, lo recorrido, la posición y los
+// lugares y sitios conocidos. Hexes de lado plano; las columnas pares bajan medio hex (igual que tools/mundo.py).
+// piso: la vista del mundo; selPiso: destino elegido, «HEX1832» (su centro) o «HEX1832.N» (un sector).
+let piso=null, selPiso=null, hexVista=null;
+const SECTORES=["C","N","NE","SE","S","SW","NW"], ANILLO=["N","NE","SE","S","SW","NW"], OPUESTO={N:"S",S:"N",NE:"SW",SW:"NE",SE:"NW",NW:"SE"};
+const NOMBRE_SECTOR={C:"centro",N:"norte",NE:"noreste",SE:"sureste",S:"sur",SW:"suroeste",NW:"noroeste"};
+const COLOR_TERRENO={pradera:"#8fae5d",bosque:"#3f6e44",desierto:"#cdb57a","montaña":"#857a70",pantano:"#566b5a",tundra:"#b9c6ca",mar:"#1b3550"};
+const ANGULO_SECTOR={N:-90,NE:-30,SE:30,S:90,SW:150,NW:210};
+const hexId=(c,f)=>`HEX${String(c).padStart(2,"0")}${String(f).padStart(2,"0")}`;
+const partesHex=id=>{const m=/^HEX(\d{2,3})(\d{2})$/.exec(id);return m?[Number(m[1]),Number(m[2])]:null};
+function vecinoHex(id,d){const [c,f]=partesHex(id),par=c%2===0;
+  const D={N:[0,-1],S:[0,1],NE:[1,par?0:-1],SE:[1,par?1:0],NW:[-1,par?0:-1],SW:[-1,par?1:0]}[d];return hexId(c+D[0],f+D[1])}
+function vecinosNodoM([h,s]){if(s==="C")return ANILLO.map(x=>[h,x]);const i=ANILLO.indexOf(s);
+  return[[h,"C"],[h,ANILLO[(i+5)%6]],[h,ANILLO[(i+1)%6]],[vecinoHex(h,s),OPUESTO[s]]]}
+function indiceMundo(p){if(p._idx)return p._idx;const idx={};p.hexes.forEach(([c,f,t,a,sec])=>idx[hexId(c,f)]={c,f,t,a,sec});return p._idx=idx}
+const terrenoNodo=(p,[h,s])=>{const x=indiceMundo(p)[h];return x?x.sec[SECTORES.indexOf(s)]:null};
+const pasaM=(p,n)=>{const t=terrenoNodo(p,n);return t!=null&&!(p.viaje.terreno[t]||{}).infranqueable};
+function horasPasoM(p,n,ritmo){const v=p.viaje,t=v.terreno[terrenoNodo(p,n)]||{factor:1};
+  return v.km_por_paso/(v.velocidad_kmh[p.modo||"a_pie"]*v.ritmos[ritmo].factor*(t.factor??1))}
+// La misma ruta que calcula el motor (mundo.ruta_por_lo_conocido): solo por hexes conocidos y sectores de tierra.
+function rutaMundo(p,destino,ritmo){
+  const [h,s]=destino.includes(".")?destino.split("."):[destino,"C"], K=n=>n[0]+"."+n[1], ini=[p.posicion.hex,p.posicion.sector];
+  if(!indiceMundo(p)[h])return null;
+  let metas=new Set([K([h,s])]);
+  if(s==="C"&&!pasaM(p,[h,"C"]))metas=new Set(ANILLO.filter(x=>pasaM(p,[h,x])).map(x=>K([h,x])));
+  const dist={[K(ini)]:0},prev={},cola=[[0,ini]];
+  while(cola.length){cola.sort((a,b)=>a[0]-b[0]);const [d,n]=cola.shift();if(d>dist[K(n)]+1e-12)continue;
+    if(metas.has(K(n))){const camino=[n];while(K(camino[0])!==K(ini))camino.unshift(prev[K(camino[0])]);return{horas:d,pasos:camino.length-1,camino}}
+    for(const v of vecinosNodoM(n)){if(!pasaM(p,v))continue;const nd=d+horasPasoM(p,v,ritmo);
+      if(nd<(dist[K(v)]??Infinity)-1e-9){dist[K(v)]=nd;prev[K(v)]=n;cola.push([nd,v])}}}
+  return null}
 const ritmoDe=v=>v==="sigilo"?"lento":v;
 function horaTexto(fecha,horas){const m=/T(\d\d):(\d\d)/.exec(fecha);let min=Number(m[1])*60+Number(m[2])+Math.round(horas*60);const dias=Math.floor(min/1440);min%=1440;
   return `${String(Math.floor(min/60)).padStart(2,"0")}:${String(min%60).padStart(2,"0")}${dias?` (${dias===1?"al día siguiente":`en ${dias} días`})`:""}`}
 const horasTexto=h=>h<0.75?`unos ${Math.max(5,Math.round(h*60/5)*5)} minutos`:Math.round(h)<=1?"cerca de una hora":`unas ${Math.round(h)} horas`;
-function aplicarNombresMapa(p){
-  if(!p||!nombresMapa||nombresMapa.piso!==p.piso)return p;
-  return {...p,lugares:(p.lugares||[]).map(([c,r,n])=>{
-    const candidatos=(nombresMapa.lugares||[]).filter(x=>x[0]===c&&x[1]===r).map(x=>x[2]);
-    return [c,r,/^(un )?lugar que ya conocen$/i.test(n)&&candidatos.length?candidatos.join(" · "):n];
-  })};
-}
-async function cargarNombresMapa(){
-  nombresMapa=null;const repo=cfg.repo;
-  try{const r=await fetch(`${API}/repos/${repo}/contents/nombres_mapa.json`,{headers:cabeceras(),cache:"no-store"});
-    if(!r.ok||repo!==cfg.repo)return;const j=await r.json(),x=JSON.parse(deB64(j.content));
-    if(!Array.isArray(x.lugares)||!x.lugares.every(a=>Array.isArray(a)&&a.length===3&&Number.isInteger(a[0])&&Number.isInteger(a[1])&&typeof a[2]==="string"))return;
-    nombresMapa=x;if(piso)pintarPiso(piso);
-  }catch(e){} // Compatibilidad opcional: la vista nueva ya trae sus propios nombres.
-}
-function nombresHexPiso(p,c,r){return (p.lugares||[]).filter(x=>x[0]===c&&x[1]===r).map(x=>x[2])}
+async function cargarNombresMapa(){} // los nombres conocidos ya vienen en la vista del mundo
+const conocidosEn=(p,h,sec)=>[...(p.lugares||[]),...(p.sitios||[])].filter(x=>x.hex===h&&(!sec||x.sector===sec));
+const textoDestino=d=>{const [h,s]=d.split(".");return s?`${h}, sector ${NOMBRE_SECTOR[s]}`:h};
 function pintarLugaresPiso(p){
-  $("lugaresPiso").innerHTML=(p.lugares||[]).map(([c,r,n])=>`<button type="button" class="sec" data-lugar-hp="${c},${r}" aria-pressed="${selPiso===c+","+r}">◆ ${esc(n)} · ${c},${r}</button>`).join("");
-  $("lugaresPiso").querySelectorAll("[data-lugar-hp]").forEach(b=>b.onclick=()=>{selPiso=b.dataset.lugarHp;pintarPiso(p)});
+  const todos=[...(p.lugares||[]).map(x=>({...x,m:"◆"})),...(p.sitios||[]).map(x=>({...x,m:"◇"}))];
+  $("lugaresPiso").innerHTML=todos.map(x=>`<button type="button" class="sec" data-destino="${x.hex}.${x.sector}" aria-pressed="${selPiso===x.hex+"."+x.sector}">${x.m} ${esc(x.nombre)}</button>`).join("");
+  $("lugaresPiso").querySelectorAll("[data-destino]").forEach(b=>b.onclick=()=>{selPiso=b.dataset.destino;hexVista=selPiso.split(".")[0];pintarPiso(p)});
 }
 function preseleccion(){
   const p=piso; if(!p||!selPiso){$("irPiso").disabled=true;return}
-  const d=selPiso.split(",").map(Number), hex=p.hexes.find(x=>x[0]===d[0]&&x[1]===d[1]), t=hex?.[2], nombres=nombresHexPiso(p,...d).join(" · ");
-  if(!hex){$("infoPiso").textContent=(nombres?nombres+". ":"")+"Todavía no conocen un camino hasta esa casilla.";$("irPiso").disabled=true;return}
-  if(selPiso===p.pos.join(",")){$("infoPiso").textContent=(nombres?nombres+". ":"")+"Ahí están ahora.";$("irPiso").disabled=true;return}
-  const forr=["forrajear"].includes($("actividadPiso").value)&&$("ritmoPiso").value==="rapido";
-  const r=rutaPiso(p,p.pos,d,ritmoDe($("ritmoPiso").value));
-  if(!r){$("infoPiso").innerHTML=`${nombres?esc(nombres)+" · ":""}${esc(t.replace(/_/g," "))}: por lo que ya vieron no hay camino.`;$("irPiso").disabled=true;return}
+  const [h,s]=selPiso.split("."), aqui=p.posicion.hex+"."+p.posicion.sector;
+  const nombres=conocidosEn(p,h,s).map(x=>x.nombre).join(" · "), t=terrenoNodo(p,[h,s||"C"]);
+  if(selPiso===aqui||(!s&&h===p.posicion.hex&&p.posicion.sector==="C")){$("infoPiso").textContent=(nombres?nombres+". ":"")+"Ahí están ahora.";$("irPiso").disabled=true;return}
+  const r=rutaMundo(p,selPiso,ritmoDe($("ritmoPiso").value));
+  if(!r){$("infoPiso").textContent=`${nombres?nombres+" · ":""}${textoDestino(selPiso)}: por lo que conocen no hay camino por tierra.`;$("irPiso").disabled=true;return}
   const hoy=p.marcha_hoy||0, total=hoy+r.horas, lim=p.horas_de_marcha;
   const extra=[];for(let k=lim+1;k<=Math.floor(total+1e-9);k++)if(k>hoy+1e-9)extra.push(k);
-  const lineas=[`<b>${esc(nombres||t.replace(/_/g," "))}</b>${nombres?" · "+esc(t.replace(/_/g," ")):""}: ${r.hexes} hexágono${r.hexes===1?"":"s"}, ${horasTexto(r.horas)} de marcha.`,
+  const km=r.pasos*p.viaje.km_por_paso;
+  const lineas=[`<b>${esc(nombres||textoDestino(selPiso))}</b>${t?" · "+esc(t):""}: unos ${km} km, ${horasTexto(r.horas)} de marcha${p.modo==="a_caballo"?" a caballo":""}.`,
     `Llegarían a las ${horaTexto(p.fecha,r.horas)}. ${hoy<0.05?"Hoy todavía no marcharon":`Hoy llevan ${horasTexto(hoy)} de marcha`}; con esto, ${horasTexto(total)} en el día.`];
-  if(r.requiere.length)lineas.push(`En el camino hay que ${r.requiere.join(" y ")}.`);
   const yaForzada=hoy>=lim-1e-9;
   if(yaForzada)lineas.push(`<span style="color:var(--warn)">Ya llevan ${lim} horas de marcha: toda esta marcha es forzada, con riesgo de agotamiento.</span>`);
   else if(extra.length)lineas.push(`<span style="color:var(--warn)">Pasa de ${lim} horas de marcha: al llegar a las ${lim} se detendrán y podrás decidir si siguen con marcha forzada, con riesgo de agotamiento.</span>`);
   $("irPiso").textContent=yaForzada?"Confirmar marcha forzada":"Confirmar traslado";
   if($("ritmoPiso").value==="rapido")lineas.push("A ritmo rápido, −5 a la Percepción pasiva.");
-  if(forr)lineas.push("A ritmo rápido no se puede forrajear.");
-  if($("actividadPiso").value!=="vigilar")lineas.push("Mientras no vigila, su Percepción pasiva no cuenta para notar amenazas ni lugares.");
   $("infoPiso").innerHTML=lineas.join("<br>");
   $("irPiso").disabled=false;
 }
@@ -916,7 +906,7 @@ function pintarResumen(p){
   const el=$("resumenEscena"); if(!el)return; el.hidden=!p; if(!p)return;
   const f=/D(\d+)T(\d\d):(\d\d)/.exec(p.fecha||""), hm=h=>{const m=Math.round(h*60);return `${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`};
   const hoy=p.marcha_hoy||0, lim=p.horas_de_marcha||8, lineas=[];
-  if(f)lineas.push(`<b>Día ${Number(f[1])}, ${f[2]}:${f[3]}</b> · piso ${p.piso}`);
+  if(f)lineas.push(`<b>Día ${Number(f[1])}, ${f[2]}:${f[3]}</b> · ${p.posicion.hex}, sector ${NOMBRE_SECTOR[p.posicion.sector]}`);
   lineas.push(hoy<0.05?"Desde el último descanso largo todavía no marcharon."
     :`Marcha desde el último descanso largo: ${hm(hoy)}${hoy>lim+1e-9?` <span style="color:var(--warn)">(pasaron las ${lim} h: seguir es marcha forzada)</span>`:""}.`);
   const u=/D(\d+)T(\d\d):(\d\d)/.exec(p.ultimo_descanso_largo||"");
@@ -927,44 +917,64 @@ function pintarResumen(p){
   el.innerHTML=lineas.join("<br>")}
 function pintarPiso(p){
   pintarResumen(p);
-  p=aplicarNombresMapa(p);piso=p; $("panelPiso").hidden=!p; if(!p)return;
-  $("tituloPiso").textContent=`Piso ${p.piso}`;
-  const R=14, W=Math.sqrt(3)*R, cx=c=>R*1.5*c+R*1.2, cy=(c,r)=>W*(r+0.5*(c&1))+W*0.6;
-  const pts=(c,r)=>[0,1,2,3,4,5].map(i=>{const a=Math.PI/3*i;return(cx(c)+R*Math.cos(a)).toFixed(1)+","+(cy(c,r)+R*Math.sin(a)).toFixed(1)}).join(" ");
-  const rec=new Set(p.recorridos.map(h=>h.join(","))), xs=[...p.hexes,...(p.anotados||[])].map(h=>cx(h[0])), ys=[...p.hexes,...(p.anotados||[])].map(h=>cy(h[0],h[1]));  // el encuadre incluye lo visto de lejos o contado
-  // Las etiquetas de lo anotado salen a la derecha del círculo: el encuadre les deja lugar para que no se corten.
-  const etq=n=>n.includes(";")?n.split(";")[1].split(" (")[0].split(",").slice(0,2).join(",").trim():n.split(/[(:]/)[0].trim(), finEtq=[...(p.anotados||[]).map(([c,r,n])=>cx(c)+8+etq(n).length*6),...(p.lugares||[]).map(([c,r,n])=>cx(c)+7+String(n).length*6)];
-  const x0=Math.min(...xs)-R*1.5, y0=Math.min(...ys)-W, w=Math.max(...xs,...finEtq)-x0+R*1.5, h=Math.max(...ys)-y0+W;
-  let svg=p.hexes.map(([c,r,t])=>`<polygon points="${pts(c,r)}" data-hp="${c},${r}" class="hxp ${rec.has(c+","+r)?"rec":""} ${selPiso===c+","+r?"sel":""}" style="fill:${p.terrenos[t].color}"><title>${esc(t.replace(/_/g," "))}</title></polygon>`).join("");
-  (p.enlaces||[]).forEach(([c1,r1,c2,r2,min,sent,req])=>{const rot=(req?`hay que ${req}`:"escalera")+`, ${min} min`;
-    svg+=`<line x1="${cx(c1)}" y1="${cy(c1,r1)}" x2="${cx(c2)}" y2="${cy(c2,r2)}" class="enlace-piso"><title>${esc(rot)}</title></line>`
-      +`<text x="${(cx(c1)+cx(c2))/2+4}" y="${(cy(c1,r1)+cy(c2,r2))/2-3}" class="enlace-nombre">${esc(rot)}</text>`});
-  // Lo visto de lejos o contado: un círculo hueco con su nota (puede ser falso).
-  (p.anotados||[]).forEach(([c,r,n])=>{const X=cx(c),Y=cy(c,r);svg+=`<circle cx="${X}" cy="${Y}" r="6" class="anotado-piso"><title>${esc(n)}</title></circle><text x="${X+8}" y="${Y+3}" class="lugar-nombre">${esc(etq(n))}</text>`});
-  (p.lugares||[]).forEach(([c,r,n])=>{const X=cx(c),Y=cy(c,r)-R*0.45;svg+=`<polygon points="${X},${Y-5} ${X+5},${Y} ${X},${Y+5} ${X-5},${Y}" class="lugar-piso"><title>${esc(n)}</title></polygon>`
-    +`<text x="${X+7}" y="${Y+3}" class="lugar-nombre">${esc(n)}</text>`});
-  svg+=`<circle cx="${cx(p.pos[0])}" cy="${cy(p.pos[0],p.pos[1])}" r="${R*0.45}" class="pos-piso"/>`;
-  // Con lo visto de lejos el mapa crece mucho: se ajusta al ancho del panel para que se vea entero, y después se centra en la cuadrilla.
-  const ancho=Math.min(w*1.4,Math.max(320,$("mapaPiso").clientWidth||320)*((p.anotados||[]).length?1.6:9));
+  piso=p; $("panelPiso").hidden=!p; if(!p)return;
+  delete p._idx;
+  const pos=p.posicion, idx=indiceMundo(p);
+  if(!hexVista||!idx[hexVista])hexVista=pos.hex;
+  $("tituloPiso").textContent=`Mundo · ${pos.hex}, sector ${NOMBRE_SECTOR[pos.sector]}`;
+  const R=16, H=Math.sqrt(3)*R, cx=c=>1.5*R*c, cy=(c,f)=>H*f+(c%2===0?H/2:0);
+  const pts=(c,f,r=R)=>[0,1,2,3,4,5].map(i=>{const a=Math.PI/3*i;return(cx(c)+r*Math.cos(a)).toFixed(1)+","+(cy(c,f)+r*Math.sin(a)).toFixed(1)}).join(" ");
+  const enSector=(c,f,sec,k=0.55)=>{if(sec==="C")return[cx(c),cy(c,f)];const a=ANGULO_SECTOR[sec]*Math.PI/180;return[cx(c)+R*k*Math.cos(a),cy(c,f)+R*k*Math.sin(a)]};
+  const rec=new Set((p.recorridos||[]).map(x=>x.split(".")[0]));
+  let svg="";
+  p.hexes.forEach(([c,f,t,a])=>{const id=hexId(c,f);
+    svg+=`<polygon points="${pts(c,f)}" data-hm="${id}" class="hxp ${rec.has(id)?"rec":""} ${selPiso&&selPiso.split(".")[0]===id?"sel":""}" style="fill:${COLOR_TERRENO[t]||"#444"}"><title>${id}: ${esc(t)}${a?`, ${esc(a)}`:""}</title></polygon>`;
+    if(a==="río")svg+=`<path d="M${cx(c)-R*0.55},${cy(c,f)+R*0.25} q${R*0.27},-${R*0.3} ${R*0.55},0 t${R*0.55},0" class="rio-mundo"/>`});
+  (p.lugares||[]).forEach(l=>{const q=partesHex(l.hex);if(!q||!idx[l.hex])return;const [X,Y]=enSector(q[0],q[1],l.sector);
+    svg+=`<polygon points="${X},${Y-4} ${X+4},${Y} ${X},${Y+4} ${X-4},${Y}" class="lugar-piso"><title>${esc(l.nombre)}</title></polygon><text x="${X+6}" y="${Y+3}" class="lugar-nombre">${esc(l.nombre)}</text>`});
+  (p.sitios||[]).forEach(l=>{const q=partesHex(l.hex);if(!q||!idx[l.hex])return;const [X,Y]=enSector(q[0],q[1],l.sector);
+    svg+=`<polygon points="${X},${Y-4} ${X+4},${Y} ${X},${Y+4} ${X-4},${Y}" class="sitio-mundo"><title>${esc(l.nombre)}</title></polygon><text x="${X+6}" y="${Y+3}" class="lugar-nombre">${esc(l.nombre)}</text>`});
+  const qp=partesHex(pos.hex),[PX,PY]=enSector(qp[0],qp[1],pos.sector);
+  svg+=`<circle cx="${PX}" cy="${PY}" r="${R*0.32}" class="pos-piso"><title>Aquí están</title></circle>`;
+  const xs=p.hexes.map(([c])=>cx(c)), ys=p.hexes.map(([c,f])=>cy(c,f)), etiquetas=[...(p.lugares||[]),...(p.sitios||[])].map(l=>{const q=partesHex(l.hex);return q?cx(q[0])+8+l.nombre.length*5.5:0});
+  const x0=Math.min(...xs)-R*1.2, y0=Math.min(...ys)-H, w=Math.max(...xs,...etiquetas)-x0+R*1.2, h=Math.max(...ys)-y0+H;
+  const ancho=Math.min(w*2.2,Math.max(320,$("mapaPiso").clientWidth||320)*3);
   $("mapaPiso").innerHTML=`<svg viewBox="${x0.toFixed(0)} ${y0.toFixed(0)} ${w.toFixed(0)} ${h.toFixed(0)}" width="${ancho.toFixed(0)}" height="${(ancho*h/w).toFixed(0)}">${svg}</svg>`;
-  {const m=$("mapaPiso"),k=ancho/w;m.scrollLeft=(cx(p.pos[0])-x0)*k-m.clientWidth/2;m.scrollTop=(cy(p.pos[0],p.pos[1])-y0)*k-m.clientHeight/2}
+  {const m=$("mapaPiso"),k=ancho/w;m.scrollLeft=(PX-x0)*k-m.clientWidth/2;m.scrollTop=(PY-y0)*k-m.clientHeight/2}
+  pintarSectores(p);
   infoBuscar(); pintarDescanso(p);
-  if(!actividadTocada)$("actividadPiso").value=p.actividad_shalock||"vigilar";
-  const pr=p.provisiones||{reserva:{},luz:{}}, r=pr.reserva, l=pr.luz||{};
+  const pr=p.provisiones||{reserva:{},luz:{}}, r=pr.reserva||{}, l=pr.luz||{};
   pintarCarga(p.carga);
-  $("provPiso").innerHTML=`Provisiones: ${r.raciones??0} raciones · ${r.agua_galones??0} galones de agua · ${r.antorchas??0} antorchas · ${r.aceite_pintas??0} pintas de aceite · ${r.velas??0} velas · ${r.lena??0} de leña${r.lena_mojada?` (+${r.lena_mojada} mojada)`:""}`
+  $("provPiso").innerHTML=p.provisiones?`Provisiones: ${r.raciones??0} raciones · ${r.agua_galones??0} galones de agua · ${r.antorchas??0} antorchas · ${r.aceite_pintas??0} pintas de aceite · ${r.velas??0} velas · ${r.lena??0} de leña${r.lena_mojada?` (+${r.lena_mojada} mojada)`:""}`
     +`<br>Luz: ${l.fuente?`${l.fuente} ${l.encendida?"encendida":"apagada"} (le quedan ${horasTexto(l.queda_h||0)})`:"ninguna encendida"}`
-    +(p.condiciones&&p.condiciones.luz==="oscuridad"?" · el piso está a oscuras":"")
-    +(p.shalock&&p.shalock.cansancio?` · agotamiento ${p.shalock.cansancio}`:"");
+    +(p.pj&&p.pj.cansancio?` · agotamiento ${p.pj.cansancio}`:""):"";
   const pf=p.pregunta_forzada; $("preguntaForzada").hidden=!pf;
-  if(pf){const r=rutaPiso(p,p.pos,pf.destino.split(",").map(Number),pf.ritmo);
-    $("textoForzada").textContent=`Iban hacia ${pf.destino}; les faltan ${r?horasTexto(r.horas):"tramos que ya no ven"}. Seguir es marcha forzada, con riesgo de agotamiento.`}
-  $("leyPiso").innerHTML=((p.anotados||[]).length?`<span><i style="background:transparent;border:2px dashed #e0a458;border-radius:50%"></i>visto de lejos o contado</span>`+p.anotados.map(([c,r,n])=>`<span>◌ ${c},${r}: ${esc(n)}</span>`).join(""):"")+((p.lugares||[]).length?`<span><i style="background:#f2d06b;transform:rotate(45deg);width:9px;height:9px"></i>lugares conocidos (◆)</span>`:"")+Object.entries(p.terrenos).map(([t,x])=>`<span><i style="background:${x.color}"></i>${esc(t.replace(/_/g," "))}${x.min==null?" (no se pasa)":x.requiere?` (hay que ${x.requiere})`:""}</span>`).join("")+`<span><i style="background:transparent;border:1.5px solid #c9d4e3"></i>recorrido</span>`;
-
-  $("mapaPiso").querySelectorAll("[data-hp]").forEach(el=>el.onclick=()=>{
-    selPiso=el.dataset.hp; pintarPiso(p)});
+  if(pf){const rr=rutaMundo(p,pf.destino,pf.ritmo);
+    $("textoForzada").textContent=`Iban hacia ${textoDestino(pf.destino)}; les faltan ${rr?horasTexto(rr.horas):"tramos que ya no ven"}. Seguir es marcha forzada, con riesgo de agotamiento.`}
+  const presentes=[...new Set(p.hexes.map(x=>x[2]))];
+  $("leyPiso").innerHTML=presentes.map(t=>`<span><i style="background:${COLOR_TERRENO[t]||"#444"}"></i>${esc(t)}${(p.viaje.terreno[t]||{}).infranqueable?" (no se cruza a pie)":(p.viaje.terreno[t]||{}).dificil?" (difícil: a mitad de velocidad)":""}</span>`).join("")
+    +(p.hexes.some(x=>x[3]==="río")?`<span><i style="background:transparent;border:0;color:#6cb6ff">∿</i>río</span>`:"")
+    +((p.lugares||[]).length?`<span><i style="background:#f2d06b;transform:rotate(45deg);width:9px;height:9px"></i>lugar conocido</span>`:"")
+    +((p.sitios||[]).length?`<span><i style="background:transparent;border:1.5px solid #f2d06b;transform:rotate(45deg);width:8px;height:8px"></i>sitio hallado</span>`:"")
+    +`<span><i style="background:transparent;border:1.5px solid #c9d4e3"></i>recorrido</span><span><i style="background:var(--acento,#8b7cf6);border-radius:50%"></i>dónde están</span>`;
+  $("mapaPiso").querySelectorAll("[data-hm]").forEach(el=>el.onclick=()=>{selPiso=el.dataset.hm;hexVista=el.dataset.hm;pintarPiso(p)});
   pintarLugaresPiso(p);
   preseleccion();
+}
+// Los siete sectores del hex elegido (o del hex donde están): cada uno a unos 11 km del de al lado.
+function pintarSectores(p){
+  const idx=indiceMundo(p), x=idx[hexVista]; if(!x){$("sectoresMundo").innerHTML="";return}
+  const r=26, d=Math.sqrt(3)*r, aqui=p.posicion.hex===hexVista?p.posicion.sector:null, rec=new Set(p.recorridos||[]);
+  const centro=s=>{if(s==="C")return[0,0];const a=ANGULO_SECTOR[s]*Math.PI/180;return[d*Math.cos(a),d*Math.sin(a)]};
+  const pts=([X,Y])=>[0,1,2,3,4,5].map(i=>{const a=Math.PI/3*i;return(X+r*Math.cos(a)).toFixed(1)+","+(Y+r*Math.sin(a)).toFixed(1)}).join(" ");
+  let svg="";
+  SECTORES.forEach((s,i)=>{const c=centro(s), t=x.sec[i], k=hexVista+"."+s, nombres=conocidosEn(p,hexVista,s).map(l=>l.nombre);
+    svg+=`<polygon points="${pts(c)}" data-sec="${k}" class="sec-hex ${rec.has(k)?"rec":""} ${selPiso===k?"sel":""}" style="fill:${COLOR_TERRENO[t]||"#444"}"><title>Sector ${NOMBRE_SECTOR[s]}: ${esc(t)}${nombres.length?" · "+esc(nombres.join(", ")):""}</title></polygon>`;
+    if(nombres.length)svg+=`<text x="${c[0].toFixed(1)}" y="${(c[1]+3).toFixed(1)}" class="sec-nombre">◆ ${esc(nombres[0].length>12?nombres[0].slice(0,11)+"…":nombres[0])}</text>`;
+    if(s===aqui)svg+=`<circle cx="${c[0].toFixed(1)}" cy="${(c[1]+(nombres.length?-9:0)).toFixed(1)}" r="6" class="pos-piso"/>`});
+  const L=d+r+4;
+  $("sectoresMundo").innerHTML=`<div class="estado">Sectores de ${hexVista}${aqui?" (están aquí)":""}: toca uno para ir a ese punto del hex.</div><svg viewBox="${-L} ${-L} ${2*L} ${2*L}" width="${Math.round(2*L*1.6)}" height="${Math.round(2*L*1.6)}">${svg}</svg>`;
+  $("sectoresMundo").querySelectorAll("[data-sec]").forEach(el=>el.onclick=()=>{selPiso=el.dataset.sec;pintarPiso(p)});
 }
 
 // ---- Intenciones de campaña y narración (catálogo compartido con el puente) ----
@@ -1080,13 +1090,11 @@ async function enviarExploracion(t){
 $("irPiso").addEventListener("click",async()=>{
   if(!piso||!selPiso)return;
   const v=$("ritmoPiso").value;
-  try{await enviarExploracion({tipo:"exploracion",accion:"mover",destino:selPiso,ritmo:ritmoDe(v),sigilo:v==="sigilo",forzada:(piso.marcha_hoy||0)>=piso.horas_de_marcha-1e-9,actividad:$("actividadPiso").value,texto:$("textoPiso").value.trim()||null,ts:Date.now()});
-    $("estadoPiso").textContent="Traslado añadido al turno. Pulsa Listo arriba para enviarlo.";$("textoPiso").value="";$("irPiso").disabled=true;selPiso=null;actividadTocada=false;$("borradorTurno").open=true}
+  try{await enviarExploracion({tipo:"exploracion",accion:"mover",destino:selPiso,ritmo:ritmoDe(v),sigilo:v==="sigilo",forzada:(piso.marcha_hoy||0)>=piso.horas_de_marcha-1e-9,texto:$("textoPiso").value.trim()||null,ts:Date.now()});
+    $("estadoPiso").textContent="Traslado añadido al turno. Pulsa Listo arriba para enviarlo.";$("textoPiso").value="";$("irPiso").disabled=true;selPiso=null;$("borradorTurno").open=true}
   catch(e){$("estadoPiso").textContent=`No se pudo añadir (${e.message}).`}
 });
 $("ritmoPiso").addEventListener("change",preseleccion);
-let actividadTocada=false;
-$("actividadPiso").addEventListener("change",()=>{actividadTocada=true;preseleccion()});
 $("seguirForzada").addEventListener("click",async()=>{const pf=piso&&piso.pregunta_forzada;if(!pf)return;
   try{await enviarExploracion({tipo:"exploracion",accion:"mover",destino:pf.destino,ritmo:pf.ritmo,sigilo:pf.sigilo,forzada:true,texto:$("textoPiso").value.trim()||null,ts:Date.now()});
     $("estadoPiso").textContent="Marcha forzada añadida al turno. Pulsa Listo arriba para enviarla.";$("preguntaForzada").hidden=true;$("borradorTurno").open=true}catch(e){$("estadoPiso").textContent=`No se pudo añadir (${e.message}).`}});
@@ -1095,14 +1103,14 @@ $("pararForzada").addEventListener("click",async()=>{
     $("estadoPiso").textContent="La decisión de parar fue añadida al turno. Pulsa Listo arriba para enviarla.";$("preguntaForzada").hidden=true;$("borradorTurno").open=true}catch(e){$("estadoPiso").textContent=`No se pudo añadir (${e.message}).`}});
 // Descanso corto: los dados de golpe se eligen y se tiran aquí (cada uno + CON, mínimo 0, PHB).
 function pintarDescanso(p){
-  const s=p.shalock||{dados_de_golpe:{},pg:0,pg_max:0,mod_con:0};
+  const s=p.pj||{dados_de_golpe:{},pg:0,pg_max:0,mod_con:0};
   $("infoDescanso").textContent=`PG ${s.pg}/${s.pg_max}. El largo: todos los PG, la mitad de los dados de golpe, lo que se recupera con descanso largo y un nivel menos de agotamiento si comieron y bebieron; uno cada 24 horas. El corto: lo que se recupera con descanso corto y los dados de golpe que gastes. Si aparece algo mientras descansan, el descanso se interrumpe.`;
   const prev={};$("dadosDescanso").querySelectorAll("select").forEach(x=>prev[x.dataset.dg]=x.value);
   $("dadosDescanso").innerHTML=Object.entries(s.dados_de_golpe||{}).map(([dado,n])=>`<label>Dados de golpe ${dado} (te quedan ${n})<select data-dg="${dado}">${Array.from({length:n+1},(_,i)=>`<option value="${i}" ${String(i)===(prev[dado]||"0")?"selected":""}>${i}</option>`).join("")}</select></label>`).join("");
 }
 async function enviarDescanso(clase){
   const t={tipo:"exploracion",accion:"descansar",clase,fogata:$("fogataDescanso").checked,texto:$("textoPiso").value.trim()||null,ts:Date.now()};
-  if(clase==="corto"){const s=piso.shalock||{mod_con:0}, dadosG={}, totales=[], detalle=[];
+  if(clase==="corto"){const s=piso.pj||{mod_con:0}, dadosG={}, totales=[], detalle=[];
     $("dadosDescanso").querySelectorAll("select").forEach(x=>{const n=Number(x.value),caras=Number(x.dataset.dg.slice(1));
       if(n>0)dadosG[x.dataset.dg]=n; for(let i=0;i<n;i++){const v=d(caras);totales.push(Math.max(0,v+s.mod_con));detalle.push(`${x.dataset.dg}: ${v}${s.mod_con>=0?" + ":" − "}${Math.abs(s.mod_con)}`)}});
     if(totales.length){t.dados_de_golpe={dados:dadosG,totales};$("estadoPiso").textContent=`Dados de golpe: ${detalle.join("; ")} = ${totales.reduce((a,b)=>a+b,0)} PG.`}}
@@ -1112,7 +1120,7 @@ async function enviarDescanso(clase){
 $("descansoCorto").addEventListener("click",()=>enviarDescanso("corto"));
 $("descansoLargo").addEventListener("click",()=>enviarDescanso("largo"));
 function infoBuscar(){if(!piso)return;const h=Number($("horasBuscar").value);
-  $("infoBuscar").textContent=`Buscan en el hexágono donde están durante ${h===1?"una hora":`${h} horas`}: terminarían a las ${horaTexto(piso.fecha,h)}. No suma horas de marcha.`}
+  $("infoBuscar").textContent=`Buscan en el sector ${NOMBRE_SECTOR[piso.posicion.sector]} de ${piso.posicion.hex} durante ${h===1?"una hora":`${h} horas`}: terminarían a las ${horaTexto(piso.fecha,h)}. No suma horas de marcha.`}
 $("horasBuscar").addEventListener("change",infoBuscar);
 $("buscarPiso").addEventListener("click",async()=>{
   try{await enviarExploracion({tipo:"exploracion",accion:"buscar",horas:Number($("horasBuscar").value),texto:$("textoPiso").value.trim()||null,ts:Date.now()});
