@@ -407,7 +407,7 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
 
   <section class="panel" id="ajustes" hidden>
     <div class="eyebrow">Conexión con la mesa</div>
-    <label for="repo">Repositorio de datos<input id="repo" placeholder="usuario/mesa-datos" autocomplete="off"></label>
+    <label for="repo">Repositorio de datos<input id="repo" placeholder="usuario/mesa-clades-datos" autocomplete="off"></label>
     <label for="token">Token<input id="token" type="password" placeholder="github_pat_…" autocomplete="off"></label>
     <button id="guardar">Guardar en este dispositivo</button>
     <div class="estado">Se guarda solo en este navegador.</div>
@@ -589,13 +589,15 @@ const API="https://api.github.com";
 let nombresMapa=null;
 let cfg={repo:"",token:""}, etag=null, pedido=null, pendiente=null, enviados=new Set(), sondeo=null;
 
-function leerCfg(){try{cfg=JSON.parse(localStorage.getItem("mesa_cfg")||"{}");}catch(e){cfg={}}cfg.repo=cfg.repo||"";cfg.token=cfg.token||""}
-function guardarCfg(){try{localStorage.setItem("mesa_cfg",JSON.stringify(cfg))}catch(e){}}
-try{enviados=new Set(JSON.parse(localStorage.getItem("mesa_enviados")||"[]"))}catch(e){}
+// Ajustes y borradores con claves propias de Clades: la app de la Gran Torre vive en el mismo origen
+// (guillermomella.github.io) y compartía «mesa_cfg», así que esta abría con el repositorio de la otra.
+function leerCfg(){try{cfg=JSON.parse(localStorage.getItem("clades_mesa_cfg")||"{}");}catch(e){cfg={}}cfg.repo=cfg.repo||"GuillermoMella/mesa-clades-datos";cfg.token=cfg.token||""}
+function guardarCfg(){try{localStorage.setItem("clades_mesa_cfg",JSON.stringify(cfg))}catch(e){}}
+try{enviados=new Set(JSON.parse(localStorage.getItem("clades_mesa_enviados")||"[]"))}catch(e){}
 // La salvación automática se tira sola y el DM retira el pedido al recibirla: su resultado queda a la vista,
 // arriba en cualquier página, hasta «Entendido» (GT-ERR-137).
-let ultimaAuto=null;try{ultimaAuto=JSON.parse(localStorage.getItem("mesa_ultima_auto")||"null")}catch(e){}
-function guardarAuto(){try{localStorage.setItem("mesa_ultima_auto",JSON.stringify(ultimaAuto))}catch(e){}}
+let ultimaAuto=null;try{ultimaAuto=JSON.parse(localStorage.getItem("clades_mesa_ultima_auto")||"null")}catch(e){}
+function guardarAuto(){try{localStorage.setItem("clades_mesa_ultima_auto",JSON.stringify(ultimaAuto))}catch(e){}}
 function pintarAuto(){
   if(pedido&&ultimaAuto&&!ultimaAuto.visto&&pedido.id!==ultimaAuto.id){ultimaAuto.visto=true;guardarAuto();$("resultado").hidden=true}
   const esAuto=!!pedido?.automatica,ver=!pedido&&ultimaAuto&&!ultimaAuto.visto;
@@ -606,7 +608,7 @@ function pintarAuto(){
   $("dado").textContent=ultimaAuto.dados.join(" · ")+(ultimaAuto.descartado!=null?` (y ${ultimaAuto.descartado})`:"");$("total").textContent=`${ultimaAuto.mod>=0?"+":"−"} ${Math.abs(ultimaAuto.mod)} = ${ultimaAuto.total}`;$("resultado").hidden=false;
   $("estado").textContent="La app la tiró sola y el resultado ya le llegó al DM.";
 }
-function marcarEnviado(id){enviados.add(id);try{localStorage.setItem("mesa_enviados",JSON.stringify([...enviados].slice(-50)))}catch(e){}}
+function marcarEnviado(id){enviados.add(id);try{localStorage.setItem("clades_mesa_enviados",JSON.stringify([...enviados].slice(-50)))}catch(e){}}
 
 const fmtMod=m=>(m>=0?"+":"")+m;
 function d(n){const a=new Uint32Array(1);crypto.getRandomValues(a);return 1+(a[0]%n)}
@@ -653,7 +655,7 @@ $("personaDerrotados").addEventListener("change",()=>pintarDerrotados(derrotados
 // ---- Hoja de personaje: se llena sola con lo que publica tools/hoja_pj.py ----
 let hojaPJ=null, estiloActual=null;
 const sg=n=>(n>=0?"+":"−")+Math.abs(n);
-function estiloHoja(){let e=estiloActual;if(!e){e={};try{e=JSON.parse(localStorage.getItem("mesa_hoja_estilo")||"{}")}catch(_){};estiloActual=e}
+function estiloHoja(){let e=estiloActual;if(!e){e={};try{e=JSON.parse(localStorage.getItem("clades_mesa_hoja_estilo")||"{}")}catch(_){};estiloActual=e}
   const gotas=e.gotas??(e.tema==="carmesi");
   const papel=$("papelHoja");papel.className="hp"+(e.tema?" "+e.tema:"")+(gotas?" gotas":"");$("hpGotas").checked=gotas;papel.style.setProperty("--acento",e.acento||"#8b1e2d");papel.style.setProperty("--mano",e.letra||'"Caveat",cursive');
   $("hpTema").value=e.tema||"";$("hpAcento").value=e.acento||"#8b1e2d";$("hpLetra").value=e.letra||'"Caveat",cursive'}
@@ -661,7 +663,7 @@ function guardarEstiloHoja(ev){const antes=estiloActual||{};
   estiloActual={tema:$("hpTema").value,acento:$("hpAcento").value,letra:$("hpLetra").value,
     // Al elegir el carmesí se encienden las gotas; después cada uno decide.
     gotas:ev&&ev.target.id==="hpTema"?$("hpTema").value==="carmesi"||(antes.gotas??false):$("hpGotas").checked};
-  try{localStorage.setItem("mesa_hoja_estilo",JSON.stringify(estiloActual))}catch(_){}; pintarHoja()}
+  try{localStorage.setItem("clades_mesa_hoja_estilo",JSON.stringify(estiloActual))}catch(_){}; pintarHoja()}
 ["hpTema","hpAcento","hpLetra","hpGotas"].forEach(id=>$(id).addEventListener("change",guardarEstiloHoja));
 // Azar fijo por palabra: la misma palabra siempre lleva las mismas gotas.
 function azar(semilla){let h=2166136261;for(const ch of semilla){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}
@@ -980,7 +982,7 @@ function pintarSectores(p){
 // ---- Intenciones de campaña y narración (catálogo compartido con el puente) ----
 const ACTIVIDADES_APP={"version":1,"generales":["Estas actividades son intenciones combinables en el orden declarado, no una autorización para resolverlas todas sin pausas. Detenerse en el primer punto que requiera respuesta o elección.","Leer system/MESA.md y system/reglas_del_jugador.md; aplicar reglas vigentes, herramientas y transacciones validadas. No inventar resultados ni ejecutar acciones no declaradas.","Si el vigilante ya resolvió una acción, usar sus resultados: nunca repetir tiradas, gastos, movimientos, compras ni descansos para leer la salida.","Antes de representar a cualquier PNJ, consultar personalidad, voz, relación, conocimientos y ánimo. Interpretar esos rasgos según la escena, sin convertirlos en tics obligatorios ni imponer humor fuera de lugar.","Mostrar solo lo que el personaje percibe o conoce; sin secretos, fichas privadas, instrucciones internas ni identificadores del DM.","Registrar los cambios confirmados y actualizar las vistas afectadas antes de narrar su resultado.","Toda narración, pregunta, diálogo o aclaración dirigida al jugador se publica en la app mediante mesa_remota.py narrar; el chat de Claude queda para errores operativos. Después se vuelve al monitor existente."],"categorias":[{"id":"social","nombre":"Conversar e interactuar","ayuda":"Con quién hablas y qué dices o intentas.","instrucciones":["Consultar ficha, temperamento, voz, relación, conocimiento y ánimo de cada PNJ antes de representarlo.","Actuar su personalidad con ritmo, vocabulario y conducta propios, modulados por la situación: el humor no obliga a bromear en un funeral ni borra dolor, miedo o respeto.","Los compañeros tienen iniciativa y autonomía; no imponer un coro de opiniones ni convertir al PJ en líder por defecto.","Detenerse en la primera réplica o gesto que requiera respuesta; registrar conocimiento y consecuencias sociales solo si corresponde."]},{"id":"negociar","nombre":"Negociar y acordar","ayuda":"Propuesta, condiciones, interlocutor y límites que quieres plantear.","instrucciones":["Resolver intereses, autoridad, recursos y relación de las partes; una prueba no sustituye la conversación ni garantiza obediencia.","Distinguir propuesta, contraoferta y acuerdo aceptado; no aceptar ni gastar por el jugador.","Detallar precio, alcance, obligaciones, plazos y devolución si procede; guardar literalmente lo acordado.","Auditar cambios sociales o políticos cuando el hecho sea relevante, con canal y evidencia; no propagar reputación automáticamente."]},{"id":"comercio","nombre":"Comprar, vender e intercambiar","ayuda":"Artículos, cantidades, quién compra o vende y presupuesto, si lo defines.","instrucciones":["Comprobar existencias, propiedad, cantidades, dinero, precios vigentes y disposición del comerciante con herramientas.","Presentar oferta y condiciones antes de confirmar; una intención de comprar o vender no autoriza cualquier precio.","Al consumarse el trato, registrar una sola vez dinero de ambas partes cuando corresponda, objetos, cantidades, dueño, portador, peso y provisiones; no limitarse a narrar la entrega.","Actualizar la vista de equipo y recursos después de registrar; conservar comprobantes y no duplicar un trato al reintentar."]},{"id":"traslado","nombre":"Trasladarse y viajar","ayuda":"Destino o dirección, ruta, ritmo y precauciones.","instrucciones":["Leer posición y ruta perceptible; avanzar solo el tramo declarado hasta el primer desvío, peligro o decisión.","Aplicar tiempo, terreno, ritmo, carga, luz, provisiones, marcha forzada y encuentros mediante las herramientas pertinentes.","No ejecutar un traslado dos veces si el vigilante o el mapa ya lo resolvió; usar sus recibos.","Revisar relojes al avanzar el tiempo y narrar las señales perceptibles del trayecto, sin prometer seguridad ni revelar mapa oculto."]},{"id":"explorar","nombre":"Explorar y reconocer","ayuda":"Qué zona reconoces y cómo lo haces.","instrucciones":["Usar el mapa y las presencias existentes; no crear hallazgos convenientes por una etiqueta.","Distinguir lo visto, lo oído y lo supuesto; atender sentidos, luz, cobertura, sigilo y conocimiento previo.","Aplicar solo tiempo, riesgo y tiradas pertinentes; detenerse ante el primer descubrimiento o decisión que cambie la intención.","Registrar descubrimientos y conocimiento por canal real; publicar solo la parte conocida del mapa."]},{"id":"investigar","nombre":"Investigar y buscar información","ayuda":"Qué examinas, qué buscas y por qué medio.","instrucciones":["Precisar objeto, pregunta, método y fuentes disponibles; no asumir una conclusión o una búsqueda exhaustiva.","Resolver si hace falta prueba, su tiempo y consecuencias; pedir la tirada a la app, sin inventarla ni repetirla para mejorar el resultado.","Entregar indicios accesibles al método y resultado; distinguir testimonio, rumor y deducción de hechos comprobados.","Registrar nueva información, canal y fuente, y revisar experiencia solo por logros que la merezcan."]},{"id":"objetos","nombre":"Usar objetos e interactuar con el entorno","ayuda":"Objeto o elemento y qué quieres hacer con él.","instrucciones":["Comprobar posesión, alcance, manos, herramientas, estado, cantidad, uso y restricciones del objeto o elemento.","Resolver coste de acción, consumos y riesgos cuando proceda; no equipar ni gastar algo distinto de lo declarado.","Registrar consumo, traslado, desgaste o cambio de estado confirmado y actualizar las vistas afectadas."]},{"id":"magia","nombre":"Lanzar magia o usar capacidades","ayuda":"Conjuro o capacidad, objetivos, intención y elecciones.","instrucciones":["Leer la regla oficial registrada, objetivos, alcance, visibilidad, tiempo, componentes, concentración y recursos.","Resolver elecciones y gasto con herramientas; solicitar en la app las tiradas necesarias.","No aplicar de nuevo capacidades, ataques, curaciones o espacios ya resueltos por el motor; usar los recibos.","La magia no da información, alcance ni efectos fuera de su regla; publicar duración y efectos que el jugador pueda conocer."]},{"id":"descanso","nombre":"Descansar, acampar y esperar","ayuda":"Tipo de descanso o espera, duración y preparativos.","instrucciones":["Comprobar terreno, seguridad, horario, último descanso y límites; no convertir una propuesta en descanso completado.","Aplicar una sola vez tiempo, encuentros, interrupciones, provisiones, luz, agotamiento y recuperación mediante herramientas.","Conservar el progreso real si se interrumpe, sin volver a tirar un tramo ya resuelto.","Detenerse si surge una decisión; actualizar recursos y reloj al resolver."]},{"id":"trabajo","nombre":"Trabajar, fabricar y entrenar","ayuda":"Tarea, materiales, herramientas, dedicación y objetivo.","instrucciones":["Comprobar competencia, herramientas, instalaciones, materiales, dinero y tiempo disponibles según la regla o acuerdo registrado.","Ofrecer costes y duración antes de comprometer recursos no autorizados; distinguir encargo, avance y producto terminado.","Registrar progreso, consumos, pagos y producto o aprendizaje solo al cumplirse sus requisitos; avanzar tiempo y revisar relojes."]},{"id":"cuadrilla","nombre":"Organizar la cuadrilla y repartir","ayuda":"Propuesta de reparto, tarea, equipo o acuerdo del grupo.","instrucciones":["Leer propiedad, carga, acuerdos y autonomía de los compañeros; el jugador declara su propuesta, no la decisión de todos.","Representar aceptación, desacuerdo o iniciativa según motivos y conocimiento de cada persona.","Registrar solo el reparto o acuerdo realmente aceptado, con dueño, portador, cantidades y carga; no duplicar transferencias hechas en Equipo."]},{"id":"gestion","nombre":"Encargos, organizaciones y asuntos pendientes","ayuda":"Encargo, compromiso, organización o asunto que quieres atender.","instrucciones":["Consultar compromisos, plazos, autoridad y recursos pertinentes, sin abrir ni simular todo el mundo.","Distinguir propuesta de decisión autorizada; registrar contratos y cambios verificables, con valor anterior esperado.","Aplicar consecuencias políticas o sociales solo con canal, evidencia y afectados concretos; no atribuir conocimiento global."]},{"id":"combate","nombre":"Combatir","ayuda":"Intención, coordinación o aclaración para las acciones de combate.","instrucciones":["Usar los ataques, movimientos, reacciones, recursos y recibos del motor existente; no resolver de nuevo lo ya enviado desde Mi turno.","Respetar iniciativas, economía de acciones, objetivos por impacto, visibilidad y ventanas de reacción.","Narrar resultados perceptibles con voz y conducta de los combatientes, sin mostrar CA oculta, estadísticas ni decisiones del enemigo.","Pedir las elecciones o tiradas pendientes en la app y detenerse antes de decidir por el PJ."]},{"id":"libre","nombre":"Otra acción o aclaración","ayuda":"Cualquier acción, diálogo, pregunta o corrección que no encaje arriba.","instrucciones":["Interpretar la intención expresada y consultar solo los protocolos pertinentes.","Si falta una elección imprescindible, preguntarla por la app antes de aplicar cambios; no forzar una categoría ni inventar consentimiento."]}]};
 let declaracion={actividades:[],mensaje:""},declaracionConfirmada=false,salidaDeclaracion=null,esperasDM=[],relatoDM={mensajes:[]},etagRelato=null,leyendoRelato=false,firmaRelato="";
-const claveDeclaracion=()=>"mesa_partida_"+cfg.repo;
+const claveDeclaracion=()=>"clades_mesa_partida_"+cfg.repo;
 function guardarDeclaracion(){localStorage.setItem(claveDeclaracion(),JSON.stringify({declaracion,declaracionConfirmada,salidaDeclaracion,esperasDM}))}
 function cargarDeclaracion(){
   declaracion={actividades:[],mensaje:""};declaracionConfirmada=false;salidaDeclaracion=null;esperasDM=[];relatoDM={mensajes:[]};etagRelato=null;firmaRelato="";
@@ -1268,7 +1270,7 @@ function armarNavegacion(){
  // La subida pertenece a Personaje, no a la página Mesa: queda como bloque independiente.
  $("panelPJ").parentNode.insertBefore($("panelSubida"),$("panelPJ").nextSibling);
  for(const x of VISTAS_APP)for(const z of x.subs)for(const id of z[2])$(id)?.classList.add("ancla-subvista");
- try{const x=JSON.parse(localStorage.getItem("mesa_vista_app")||"null");if(x)vistaApp=x}catch(e){}
+ try{const x=JSON.parse(localStorage.getItem("clades_mesa_vista_app")||"null");if(x)vistaApp=x}catch(e){}
  $("abrirMenu").onclick=()=>abrirMenuApp();$("cerrarMenu").onclick=cerrarMenuApp;$("fondoMenu").onclick=cerrarMenuApp;
  document.addEventListener("keydown",e=>{if($("menuApp").hidden)return;if(e.key==="Escape"){e.preventDefault();cerrarMenuApp()}
   if(e.key==="Tab"){const bs=[...$("menuApp").querySelectorAll("button:not(:disabled)")],primero=bs[0],ultimo=bs[bs.length-1];if(e.shiftKey&&document.activeElement===primero){e.preventDefault();ultimo.focus()}else if(!e.shiftKey&&document.activeElement===ultimo){e.preventDefault();primero.focus()}}});
@@ -1278,7 +1280,7 @@ function abrirMenuApp(){focoAntesMenu=document.activeElement;$("menuApp").hidden
 function cerrarMenuApp(){$("menuApp").hidden=true;$("fondoMenu").hidden=true;$("abrirMenu").setAttribute("aria-expanded","false");focoAntesMenu?.focus()}
 function cambiarVista(seccion,sub,volverArriba=true){
  const v=VISTAS_APP.find(x=>x.id===seccion)||VISTAS_APP[0],sv=v.subs.find(x=>x[0]===sub)||v.subs[0];vistaApp={seccion:v.id,sub:sv[0]};pestana=v.id;$("abrirMenu").textContent="☰ "+v.nombre;
- try{localStorage.setItem("mesa_vista_app",JSON.stringify(vistaApp))}catch(e){}
+ try{localStorage.setItem("clades_mesa_vista_app",JSON.stringify(vistaApp))}catch(e){}
  const raices=[...new Set(Object.values(RAICES_VISTA).flat())],mostrar=new Set(RAICES_VISTA[v.id]||[]);
  for(const id of raices)$(id)?.classList.toggle("vista-oculta",!mostrar.has(id));
  // Al volver a Mesa, la narración abre en el último mensaje: oculta pierde su desplazamiento (GT-ERR-139).
@@ -1433,7 +1435,7 @@ function quedanPies(excluir){
   const x=pasos.find(p=>p.id===excluir);return Math.max(0,Math.min(presupuesto(excluir),presupuesto(null)+(x?costeDe(x):0)))}
 // Zoom (botones o pellizco), deslizar (dedo o arrastre con el mouse) y centrar en tu ficha.
 let zoomMapa=1,geoMapa=null,mapaCentrado=false,turnoPrevio=null;
-try{zoomMapa=Number(localStorage.getItem("mesa_zoom"))||1}catch(e){}
+try{zoomMapa=Number(localStorage.getItem("clades_mesa_zoom"))||1}catch(e){}
 function fijarZoom(z){
   const el=$("mapa"),svg=el.querySelector("svg");z=Math.max(0.5,Math.min(3,z));
   if(!svg||!geoMapa){zoomMapa=z;return}
@@ -1441,7 +1443,7 @@ function fijarZoom(z){
   const cx=(el.scrollLeft+el.clientWidth/2)/zoomMapa,cy=(el.scrollTop+el.clientHeight/2)/zoomMapa;
   zoomMapa=z;svg.setAttribute("width",(geoMapa.w*z).toFixed(0));svg.setAttribute("height",(geoMapa.h*z).toFixed(0));
   el.scrollLeft=cx*z-el.clientWidth/2;el.scrollTop=cy*z-el.clientHeight/2;
-  try{localStorage.setItem("mesa_zoom",String(z))}catch(e){}
+  try{localStorage.setItem("clades_mesa_zoom",String(z))}catch(e){}
 }
 function centrarMapa(){
   const el=$("mapa"),yo=yoPos();if(!geoMapa||!yo)return;
@@ -2002,8 +2004,8 @@ function tirarAtaque(id,obj,modo,ef){
          total:natural+a.bono+bend,modo,critico_desde:ef.critico_desde||20,efectos:ef};
 }
 let enCurso=null; // ataque esperando veredicto o daño
-try{enCurso=JSON.parse(localStorage.getItem("mesa_en_curso")||"null")}catch(e){}
-function guardarEnCurso(){try{localStorage.setItem("mesa_en_curso",JSON.stringify(enCurso))}catch(e){}}
+try{enCurso=JSON.parse(localStorage.getItem("clades_mesa_en_curso")||"null")}catch(e){}
+function guardarEnCurso(){try{localStorage.setItem("clades_mesa_en_curso",JSON.stringify(enCurso))}catch(e){}}
 
 // Paso 2: con el veredicto, el daño (y el Castigo divino, que se decide al impactar).
 // Un ataque enviado antes de que empezara este turno del PJ, del que el motor ya no guarda lote ni serie,
@@ -2055,7 +2057,7 @@ function dadosOpcional(op,nivel){const m=/^(\d+)d(\d+)$/.exec(op.dados),q=/^(\d+
   const n=Math.min(op.max_dados||99,Number(m[1])+Number(q[1])*(nivel-1));return`${n}d${m[2]}`}
 // ---- Borrador común: ninguna parte se transmite hasta el Listo superior ----
 let partesTurno=[],enviandoTodo=false;
-const clavePartes=()=>"mesa_partes_turno_"+cfg.repo;
+const clavePartes=()=>"clades_mesa_partes_turno_"+cfg.repo;
 function cargarPartesTurno(){try{partesTurno=JSON.parse(localStorage.getItem(clavePartes())||"[]")}catch(e){partesTurno=[]}pintarBorradorTurno()}
 function guardarPartesTurno(){localStorage.setItem(clavePartes(),JSON.stringify(partesTurno));pintarBorradorTurno()}
 function etiquetaParte(t){return t.tipo==="turno"?"Acciones de combate":t.tipo==="exploracion"?"Exploración: "+t.accion:t.tipo==="equipo"?"Cambios de equipo":t.tipo==="forja"?"Encargo: "+(t.nombre||""):t.tipo==="reaccion"?"Reacción: "+(t.opcion?.id||t.ataque?.accion||"dejar pasar"):t.tipo==="dano"?"Daño: "+t.accion:t.pedido?"Tirada: "+t.nombre:t.tipo||"Acción"}
@@ -2108,7 +2110,7 @@ async function avanzarAutomaticos(){
  if(automaticosOcupados||!cfg.repo||!cfg.token)return;automaticosOcupados=true;
  try{
   if(pedido?.automatica&&pedido.tipo==="salvacion"&&!enviados.has(pedido.id)&&!combate?.reaccion_pendiente&&!combate?.pausa){
-    const clave="mesa_salvacion_auto_"+cfg.repo+"_"+pedido.id;let envio=JSON.parse(localStorage.getItem(clave)||"null");
+    const clave="clades_mesa_salvacion_auto_"+cfg.repo+"_"+pedido.id;let envio=JSON.parse(localStorage.getItem(clave)||"null");
     if(!envio){const m=/^(\d*)d(\d+)$/.exec(pedido.expresion||"1d20"),n=Number(m?.[1]||1),caras=Number(m?.[2]||20),mod=Number(pedido.mod)||0;
       let ds=Array.from({length:n},()=>d(caras)),descartado=null;if(pedido.modo&&n===1&&caras===20){const otro=d(20),a=ds[0];ds=[pedido.modo==="ventaja"?Math.max(a,otro):Math.min(a,otro)];descartado=ds[0]===a?otro:a}
       const ts=Date.now();envio={id:`${ts}-${Math.random().toString(36).slice(2,7)}`,t:{tipo:"salvacion_auto",automatica:true,pedido:pedido.id,nombre:pedido.nombre,expresion:pedido.expresion,dados:ds,mod,total:ds.reduce((a,b)=>a+b,0)+mod,modo:pedido.modo,descartado,ts}};localStorage.setItem(clave,JSON.stringify(envio));
@@ -2428,12 +2430,12 @@ const cifraF=n=>{const [e,d]=Math.abs(n).toFixed(2).split(".");return (n<0?"−"
 const NOMBRE_BONO={ataque_y_dano:"Ataque y daño (arma)",ca:"Clase de armadura",salvaciones:"Tiradas de salvación",pruebas:"Pruebas de característica",cd_de_conjuros:"CD de conjuros",ataque_de_conjuros:"Ataque de conjuros"};
 let forjaCat=null, fj=null, envioForja=null;
 function fjNuevo(){return {taller:"magico",nombre:"",base:null,base_pedida:null,propiedades:[],mejoras:[],pociones:[],pergaminos:[],consumible:false,estetica:"",nota:""}}
-try{fj=JSON.parse(localStorage.getItem("mesa_forja")||"null")}catch(e){}
+try{fj=JSON.parse(localStorage.getItem("clades_mesa_forja")||"null")}catch(e){}
 if(!fj||!Array.isArray(fj.propiedades))fj=fjNuevo();
 if(!Array.isArray(fj.mejoras)){fj.mejoras=[];fj.taller=fj.taller||"magico"}
 if(!Array.isArray(fj.pociones))fj.pociones=[];
 if(!Array.isArray(fj.pergaminos))fj.pergaminos=[];
-function guardarFj(){try{localStorage.setItem("mesa_forja",JSON.stringify(fj))}catch(e){}}
+function guardarFj(){try{localStorage.setItem("clades_mesa_forja",JSON.stringify(fj))}catch(e){}}
 const rarezaF=r=>r?forjaCat.nombre_rareza[r]:"—";
 const chipF=r=>r?`<span class="fj-chip" style="--c:${forjaCat.colores_rareza[r]}">${esc(rarezaF(r))}</span>`:"";
 const nombreFrec=f=>f==="1/dia"?"1 vez al día":f==="a voluntad"?"a voluntad":f.replace(/^1 cargas/,"1 carga").replace("(todas)","(recupera todas al amanecer)").replace(/\((\d+d\d+(?:[+-]\d+)?)\)/,"(recupera $1 al amanecer)");
