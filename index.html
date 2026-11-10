@@ -340,6 +340,28 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
 #forja.hoja-pj,#hoja.hoja-pj{position:static;inset:auto;display:block;overflow:visible;background:transparent;padding:0;z-index:auto;max-height:none}
 #forja .forja{max-height:none}.ancla-subvista{scroll-margin-top:100px}
 @media(max-width:600px){.wrap{padding:10px;gap:10px}#cabeceraApp>div:first-of-type{display:none}#cabeceraApp button{min-height:44px}#cabeceraApp #listo{min-width:90px}#borradorTurno{margin:0}}
+/* Hoja de juego: conjuros, invocaciones y rasgos con su texto oficial desplegable. */
+.hj-cab{display:flex;flex-wrap:wrap;gap:8px}
+.hj-dato{border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:84px}
+.hj-dato b{display:block;font-size:1.25rem}.hj-dato span{font-size:.75rem;color:var(--muted)}
+.hj-pips{letter-spacing:2px;color:var(--ember)}
+.hj-filtros{display:flex;flex-wrap:wrap;gap:6px}
+.hj-filtros button{width:auto;flex:0 0 auto;padding:4px 12px;min-height:34px;border-radius:999px;background:transparent;color:var(--muted);border:1px solid var(--line)}
+.hj-filtros button.on{color:var(--fg);border-color:var(--ember);background:var(--sel)}
+#hjCuerpo{display:grid;gap:14px}
+.hj-grupo{display:grid;gap:6px}
+.hj-item{border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.hj-item>summary{cursor:pointer;padding:9px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:baseline;list-style:none}
+.hj-item>summary::-webkit-details-marker{display:none}
+.hj-item>summary .hj-nom{font-weight:700}.hj-item>summary .hj-sub{grid-column:1/-1;font-size:.8rem;color:var(--muted)}
+.hj-item[open]{border-color:var(--ember)}
+.hj-det{padding:0 12px 12px;display:grid;gap:8px}
+.hj-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;font-size:.85rem}
+.hj-stats div span{display:block;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}
+.hj-texto{white-space:pre-wrap;line-height:1.6;margin:0}
+.hj-fuente{font-size:.75rem;color:var(--muted)}
+.hj-tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+@media (min-width:1000px){#hjCuerpo .hj-lista{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;align-items:start}}
 /* PC fuera del combate: columna más ancha y, en Mesa, narración a la izquierda y turno a la derecha. */
 @media (min-width:1000px){
   .wrap:not(.con-pestanas){max-width:1280px}
@@ -570,6 +592,14 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
     <div class="estado" id="conmEstado"></div>
   </section>
 
+  <section class="panel" id="panelJuego" hidden>
+    <div class="eyebrow">Hoja de juego</div>
+    <div id="hjCab" class="hj-cab"></div>
+    <div class="hj-filtros" id="hjFiltros"></div>
+    <input id="hjBuscar" type="search" placeholder="Buscar conjuro, invocación o rasgo…" autocomplete="off">
+    <div id="hjCuerpo"></div>
+  </section>
+
   <section class="panel pane" id="panelPJ" data-pane="shalock" hidden>
     <div class="eyebrow">Personaje</div>
     <div class="recursos" id="recursos"></div>
@@ -644,8 +674,42 @@ function pintar(e){
   pintarEquipo(e.equipo||null);
   pintarDerrotados(e.derrotados||null);
   hojaPJ=e.hoja||null; $("abrirHoja").hidden=!hojaPJ; if(!$("hoja").hidden)pintarHoja();
+  pintarJuego();
   pintarConm();
 }
+// ---- Hoja de juego: conjuros, invocaciones y rasgos con el texto oficial completo, desplegables y filtrables ----
+let hjFiltro="todo",hjAbiertos=new Set(),hjFirma=null;
+const HJ_FILTROS=[["todo","Todo"],["trucos","Trucos"],["n1","Nivel 1+"],["conc","Concentración"],["ritual","Ritual"],["invoc","Invocaciones"],["rasgos","Rasgos"]];
+function pintarJuego(){
+  const p=$("panelJuego");if(!p)return;const h=hojaPJ;p.hidden=!h;if(!h)return;
+  const sinTilde=x=>String(x||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase(),busca=sinTilde($("hjBuscar").value).trim(),firma=JSON.stringify([h.conjuros,h.invocaciones,h.rasgos,hjFiltro,busca]);
+  if(firma===hjFirma)return;hjFirma=firma;
+  const c=h.conjuros||{},pips=(q,m)=>"●".repeat(Math.max(0,q))+"○".repeat(Math.max(0,m-q));
+  $("hjCab").innerHTML=[c.cd!=null?`<div class="hj-dato"><b>${c.cd}</b><span>CD de salvación</span></div>`:"",c.ataque!=null?`<div class="hj-dato"><b>${c.ataque>=0?"+":""}${c.ataque}</b><span>Ataque de conjuro</span></div>`:"",
+    c.caracteristica?`<div class="hj-dato"><b>${esc(c.caracteristica)}</b><span>Característica</span></div>`:"",
+    ...(c.espacios||[]).map(e=>`<div class="hj-dato"><b class="hj-pips">${pips(e.quedan,e.max)}</b><span>${esc(e.nombre)} · ${e.quedan}/${e.max}${e.recupera?" · "+esc(e.recupera):""}</span></div>`)].join("");
+  $("hjFiltros").innerHTML="";for(const[k,t]of HJ_FILTROS){const b=document.createElement("button");b.textContent=t;b.className=k===hjFiltro?"on":"";b.onclick=()=>{hjFiltro=k;hjFirma=null;pintarJuego()};$("hjFiltros").appendChild(b)}
+  const coincide=(...xs)=>!busca||xs.some(x=>sinTilde(x).includes(busca));
+  const stat=(t,v)=>v?`<div><span>${t}</span>${esc(v)}</div>`:"";
+  const item=(id,nom,tags,sub,det)=>`<details class="hj-item" data-id="${esc(id)}"${hjAbiertos.has(id)?" open":""}><summary><span class="hj-nom">${esc(nom)}</span><span class="hj-tags">${tags}</span>${sub?`<span class="hj-sub">${sub}</span>`:""}</summary><div class="hj-det">${det}</div></details>`;
+  const grupos=[];
+  const conj=(c.lista||[]).filter(s=>{if(hjFiltro==="invoc"||hjFiltro==="rasgos")return false;if(hjFiltro==="trucos"&&s.nivel!==0)return false;if(hjFiltro==="n1"&&!(s.nivel>=1))return false;if(hjFiltro==="conc"&&!s.concentracion)return false;if(hjFiltro==="ritual"&&!s.ritual)return false;return coincide(s.nombre,s.texto,s.escuela)});
+  const porNivel={};for(const s of conj)(porNivel[s.nivel??"?"]??=[]).push(s);
+  for(const n of Object.keys(porNivel).sort((a,b)=>(+a)-(+b))){
+    grupos.push(`<div class="hj-grupo"><div class="eyebrow">${n==="0"?"Trucos":"Conjuros de nivel "+esc(n)}</div><div class="hj-lista">`+porNivel[n].map(s=>item("c:"+s.nombre,s.nombre,
+      (s.concentracion?'<span class="chip on">C</span>':"")+(s.ritual?'<span class="chip on">R</span>':"")+`<span class="chip">${esc(s.clase)}</span>`,
+      esc([s.escuela,s.tiempo,s.alcance,s.duracion].filter(Boolean).join(" · ")),
+      `<div class="hj-stats">${stat("Tiempo",s.tiempo)}${stat("Alcance",s.alcance)}${stat("Componentes",s.componentes_completos||s.componentes)}${stat("Duración",s.duracion)}${stat("Escuela",s.escuela)}${stat("Lista",s.clase+" · "+s.grupo)}</div>`+
+      `<p class="hj-texto">${esc(s.texto||"Sin texto en el catálogo.")}</p>`+(s.superiores?`<p class="hj-texto"><b>A niveles superiores.</b> ${esc(s.superiores)}</p>`:"")+(s.mejora_truco&&!(s.texto||"").includes(s.mejora_truco)?`<p class="hj-texto"><b>Mejora del truco.</b> ${esc(s.mejora_truco)}</p>`:"")+
+      (s.fuente?`<div class="hj-fuente">${esc(s.fuente)}</div>`:""))).join("")+`</div></div>`)}
+  if(["todo","invoc"].includes(hjFiltro)){const iv=(h.invocaciones||[]).filter(x=>coincide(x.nombre,x.texto));if(iv.length)grupos.push(`<div class="hj-grupo"><div class="eyebrow">Invocaciones sobrenaturales</div><div class="hj-lista">`+iv.map(x=>item("i:"+x.nombre,x.nombre,"",x.requisitos?"Requisito: "+esc(x.requisitos):"",`<p class="hj-texto">${esc(x.texto||"Sin texto en el catálogo.")}</p>${x.fuente?`<div class="hj-fuente">${esc(x.fuente)}</div>`:""}`)).join("")+`</div></div>`)}
+  if(["todo","rasgos"].includes(hjFiltro)){const rs=(h.rasgos||[]).filter(x=>coincide(x.nombre,x.texto,x.texto_oficial));if(rs.length)grupos.push(`<div class="hj-grupo"><div class="eyebrow">Rasgos</div><div class="hj-lista">`+rs.map(x=>item("r:"+x.nombre,x.nombre,
+      (x.usos?`<span class="chip on">${x.usos.quedan??"?"}/${x.usos.max}${x.usos.unidad?" "+esc(x.usos.unidad):""}</span>`:"")+`<span class="chip">${esc(x.origen)}</span>`,esc(x.texto||""),
+      (x.texto_oficial?`<p class="hj-texto">${esc(x.texto_oficial)}</p>`:`<p class="hj-texto">${esc(x.texto||"")}</p>`)+(x.usos?.recupera?`<div class="hj-fuente">Se recupera: ${esc(x.usos.recupera)}</div>`:"")+(x.fuente?`<div class="hj-fuente">${esc(x.fuente)}</div>`:""))).join("")+`</div></div>`)}
+  $("hjCuerpo").innerHTML=grupos.join("")||'<p class="hj-fuente">Nada coincide con la búsqueda.</p>';
+  for(const d of $("hjCuerpo").querySelectorAll("details"))d.addEventListener("toggle",()=>{d.open?hjAbiertos.add(d.dataset.id):hjAbiertos.delete(d.dataset.id)});
+}
+$("hjBuscar").addEventListener("input",()=>{hjFirma=null;pintarJuego()});
 
 
 // ---- Enemigos derrotados por cada uno (tools/enemigos_derrotados.py): lo que conoce por haberlos visto caer ----
@@ -1244,7 +1308,7 @@ const VISTAS_APP=[
  {id:"mesa",nombre:"Mesa",subs:[["relato","Narración",["historiaVista"]],["declaracion","Escribir turno",["declaracion"]]]},
  {id:"exploracion",nombre:"Exploración",subs:[["mapa","Mapa y lugares",["mapaExploracionVista"]],["viaje","Traslado",["viajeVista"]],["buscar","Investigación",["buscarVista"]],["descanso","Descanso",["descansoVista"]],["carga","Carga y provisiones",["cargaPiso","provPiso"]]]},
  {id:"combate",nombre:"Combate",subs:[["mapa","Mapa",["mapaCombateVista"]],["combatientes","Combatientes",["combatientes"]],["acciones","Mis acciones",["panelTurno"]],["reaccion","Reacciones",["panelReaccion"]],["resultados","Ataques y resultados",["panelDano","salvacionesAutoVista"]],["interruptores","Interruptores",["panelConm"]]]},
- {id:"personaje",nombre:"Personaje",subs:[["hoja","Hoja",["hoja"]],["recursos","Recursos",["panelPJ"]],["subida","Subida de nivel",["panelSubida"]]]},
+ {id:"personaje",nombre:"Personaje",subs:[["hoja","Hoja",["hoja"]],["juego","Hoja de juego",["panelJuego"]],["recursos","Recursos",["panelPJ"]],["subida","Subida de nivel",["panelSubida"]]]},
  {id:"equipo",nombre:"Equipo",subs:[["inventario","Inventario",["equipoInventarioVista"]],["cambios","Cambios pendientes",["equipoPendientes"]]]},
  {id:"forja",nombre:"Forja",subs:[["diseno","Objeto y taller",["forjaDisenoVista"]],["propiedades","Propiedades y mejoras",["fjSecPedido","fjSecHerrero","fjSecMagia"]],["encargo","Aspecto y encargo",["forjaEncargoVista"]]]},
  {id:"registro",nombre:"Registro",subs:[["registro","Historial de combate",["panelRegistro"]],["tiradas","Tirada solicitada",["panelPedido"]]]},
@@ -1253,7 +1317,7 @@ const VISTAS_APP=[
 const RAICES_VISTA={
  mesa:["panelMesa"],exploracion:["panelPiso"],
  combate:["panelCombate","panelTurno","panelReaccion","panelDano","salvacionesAutoVista","panelConm"],
- personaje:["hoja","panelPJ","panelSubida"],equipo:["panelEquipo"],forja:["forja"],
+ personaje:["hoja","panelJuego","panelPJ","panelSubida"],equipo:["panelEquipo"],forja:["forja"],
  // La tirada pedida va arriba en todas las páginas, no solo en Registro (GT-ERR-137).
  registro:["panelRegistro"],conexion:["ajustes"]
 };
@@ -1292,7 +1356,7 @@ function cambiarVista(seccion,sub,volverArriba=true){
  for(const id of raices)$(id)?.classList.toggle("vista-oculta",!mostrar.has(id));
  // Al volver a Mesa, la narración abre en el último mensaje: oculta pierde su desplazamiento (GT-ERR-139).
  if(v.id==="mesa"){const box=$("relato"),bajar=()=>{box.scrollTop=box.scrollHeight};if(box)bajar()}
- if(v.id==="personaje"){$("hoja").hidden=false;if(hojaPJ)pintarHoja()}
+ if(v.id==="personaje"){$("hoja").hidden=false;if(hojaPJ)pintarHoja();pintarJuego()}
  if(v.id==="forja"){$("forja").hidden=false;if(forjaCat)armarForja();else cargarForja()}
  if(v.id==="conexion")$("ajustes").hidden=false;
  const m=$("seccionesMenu");m.replaceChildren();for(const x of VISTAS_APP){const b=document.createElement("button");b.className="sec";b.textContent=x.nombre;b.setAttribute("aria-current",x.id===v.id?"page":"false");b.onclick=()=>{cambiarVista(x.id,x.subs[0][0]);cerrarMenuApp()};m.appendChild(b);
