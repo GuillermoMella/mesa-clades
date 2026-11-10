@@ -2462,7 +2462,7 @@ function calcularF(cat,ficha){
   const base=ficha.base_pedida?{nombre:ficha.base_pedida,precio_po:0,pedida:true}:cat.bases.find(b=>b.nombre===ficha.base);
   if(!base)return null;
   let total=base.precio_po,semanas=0,consultas=0;const rar=[];
-  const pasos=[{concepto:"base: "+base.nombre,po:base.precio_po,acumulado:base.precio_po,fuente:base.pedida?"el DM fija su precio":"PHB"}];
+  const pasos=[{concepto:"base: "+base.nombre,po:base.precio_po,acumulado:base.precio_po,fuente:base.pedida?"el DM fija su precio":base.receta?"receta "+base.receta+" (DCL-019)":"PHB, sin receta todavía"}];
   for(const p of ficha.propiedades||[]){
     if(p.tipo==="consulta"){consultas++;pasos.push({concepto:p.texto,consulta:true});continue}
     const c=componenteF(cat,p,base),po=r2F(c.po*factor);total+=po;semanas+=fab[c.rareza].semanas*factor;rar.push(c.rareza);
@@ -2472,7 +2472,7 @@ function calcularF(cat,ficha){
 function calcularHerreroF(cat,ficha){
   const h=cat.herrero,base=ficha.base_pedida?{nombre:ficha.base_pedida,precio_po:0,pedida:true}:ficha.base?cat.bases.find(b=>b.nombre===ficha.base):null;
   let total=base?base.precio_po:0,trabajo=0,consultas=0;
-  const pasos=base?[{concepto:"base: "+base.nombre,po:base.precio_po,acumulado:total,fuente:base.pedida?"el DM fija su precio":"PHB"}]:[];
+  const pasos=base?[{concepto:"base: "+base.nombre,po:base.precio_po,acumulado:total,fuente:base.pedida?"el DM fija su precio":base.receta?"receta "+base.receta+" (DCL-019)":"PHB, sin receta todavía"}]:[];
   const ids=(ficha.mejoras||[]).map(m=>m.id);
   for(const m of ficha.mejoras||[]){
     if(m.id==="consulta"){consultas++;pasos.push({concepto:m.texto,consulta:true});continue}
