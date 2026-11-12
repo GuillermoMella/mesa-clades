@@ -369,6 +369,7 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
   #panelMesa>#historiaVista{position:sticky;top:90px}
   #panelMesa #relato{max-height:calc(100vh - 260px)}
 }
+.relato-sello{font-size:12px;color:var(--muted,#888);margin:2px 0 4px}
 </style>
 </head>
 <body>
@@ -979,7 +980,7 @@ function pintarResumen(p){
   const el=$("resumenEscena"); if(!el)return; el.hidden=!p; if(!p)return;
   const f=/D(\d+)T(\d\d):(\d\d)/.exec(p.fecha||""), hm=h=>{const m=Math.round(h*60);return `${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`};
   const hoy=p.marcha_hoy||0, lim=p.horas_de_marcha||8, lineas=[];
-  if(f)lineas.push(`<b>Día ${Number(f[1])}, ${f[2]}:${f[3]}</b> · ${p.lugar?esc(p.lugar)+" · ":""}${p.posicion.hex}, sector ${NOMBRE_SECTOR[p.posicion.sector]}`);
+  if(f)lineas.push(`<b>${p.fecha_texto?esc(p.fecha_texto):`Día ${Number(f[1])}, ${f[2]}:${f[3]}`}</b> · ${p.lugar?esc(p.lugar)+" · ":""}${p.posicion.hex}, sector ${NOMBRE_SECTOR[p.posicion.sector]}`);
   lineas.push(hoy<0.05?"Desde el último descanso largo todavía no marcharon."
     :`Marcha desde el último descanso largo: ${hm(hoy)}${hoy>lim+1e-9?` <span style="color:var(--warn)">(pasaron las ${lim} h: seguir es marcha forzada)</span>`:""}.`);
   const u=/D(\d+)T(\d\d):(\d\d)/.exec(p.ultimo_descanso_largo||"");
@@ -1129,9 +1130,9 @@ function pintarRelato(){
   $("estadoRelato").textContent=esperasDM.length?`Esperando respuesta del DM (${esperasDM.length} ${esperasDM.length===1?"mensaje":"mensajes"}).`:mensajes.length?"Narración actualizada.":"Las próximas respuestas del DM aparecerán aquí.";
   const firma=JSON.stringify([mensajes,esperasDM]);if(firma===firmaRelato)return;firmaRelato=firma;
   const box=$("relato"),alFinal=box.scrollHeight-box.scrollTop-box.clientHeight<50;box.replaceChildren();
-  function agregar(autor,texto,ts,error=false){const a=document.createElement("article");a.className="relato-entrada";const titulo=document.createElement("strong");titulo.textContent=autor+(error?" · aviso":"");const p=document.createElement("p");p.textContent=texto;a.append(titulo,p);if(ts){const fecha=document.createElement("small");fecha.textContent=new Date(ts).toLocaleString();a.appendChild(fecha)}box.appendChild(a)}
+  function agregar(autor,texto,ts,error=false,sello=null){const a=document.createElement("article");a.className="relato-entrada";const titulo=document.createElement("strong");titulo.textContent=autor+(error?" · aviso":"");a.append(titulo);if(sello&&(sello.fecha_texto||sello.lugar)){const lugar=document.createElement("div");lugar.className="relato-sello";lugar.textContent=[sello.fecha_texto,sello.lugar].filter(Boolean).join(" · ");a.append(lugar)}const p=document.createElement("p");p.textContent=texto;a.append(p);if(ts){const fecha=document.createElement("small");fecha.textContent=new Date(ts).toLocaleString();a.appendChild(fecha)}box.appendChild(a)}
   const mostradas=new Set();
-  for(const m of mensajes){for(const x of m.entradas||[]){if(!mostradas.has(x.id)){agregar("Tú",textoEntrada(x),x.ts);mostradas.add(x.id)}}agregar("DM",m.texto,m.ts,m.error)}
+  for(const m of mensajes){for(const x of m.entradas||[]){if(!mostradas.has(x.id)){agregar("Tú",textoEntrada(x),x.ts);mostradas.add(x.id)}}agregar("DM",m.texto,m.ts,m.error,m.sello)}
   for(const x of esperasDM)if(!mostradas.has(x.id))agregar("Tú · esperando al DM",textoEntrada(x),x.ts);
   if(alFinal)box.scrollTop=box.scrollHeight;
 }
