@@ -979,12 +979,13 @@ function pintarResumen(p){
   const el=$("resumenEscena"); if(!el)return; el.hidden=!p; if(!p)return;
   const f=/D(\d+)T(\d\d):(\d\d)/.exec(p.fecha||""), hm=h=>{const m=Math.round(h*60);return `${Math.floor(m/60)} h${m%60?` ${m%60} min`:""}`};
   const hoy=p.marcha_hoy||0, lim=p.horas_de_marcha||8, lineas=[];
-  if(f)lineas.push(`<b>Día ${Number(f[1])}, ${f[2]}:${f[3]}</b> · ${p.posicion.hex}, sector ${NOMBRE_SECTOR[p.posicion.sector]}`);
+  if(f)lineas.push(`<b>Día ${Number(f[1])}, ${f[2]}:${f[3]}</b> · ${p.lugar?esc(p.lugar)+" · ":""}${p.posicion.hex}, sector ${NOMBRE_SECTOR[p.posicion.sector]}`);
   lineas.push(hoy<0.05?"Desde el último descanso largo todavía no marcharon."
     :`Marcha desde el último descanso largo: ${hm(hoy)}${hoy>lim+1e-9?` <span style="color:var(--warn)">(pasaron las ${lim} h: seguir es marcha forzada)</span>`:""}.`);
   const u=/D(\d+)T(\d\d):(\d\d)/.exec(p.ultimo_descanso_largo||"");
-  if(u&&f){const ahora=Number(f[1])*1440+Number(f[2])*60+Number(f[3]), desde=Number(u[1])*1440+Number(u[2])*60+Number(u[3])+1440;
-    lineas.push(ahora>=desde?"Descanso largo: ya pueden hacerlo.":`Descanso largo: desde el día ${Math.floor(desde/1440)} a las ${String(Math.floor(desde%1440/60)).padStart(2,"0")}:${String(desde%60).padStart(2,"0")}.`)}
+  // ultimo_descanso_largo es el final del anterior: el nuevo cuenta si termina 24 h después (CL-ERR-012).
+  if(u&&f){const ahora=Number(f[1])*1440+Number(f[2])*60+Number(f[3]), cuenta=Number(u[1])*1440+Number(u[2])*60+Number(u[3])+1440, hhmm=m=>`${String(Math.floor(m%1440/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+    lineas.push(ahora+480>=cuenta?"Descanso largo: ya pueden hacerlo.":`Descanso largo: cuenta si termina desde el día ${Math.floor(cuenta/1440)} a las ${hhmm(cuenta)} (empezando ahora, ${hm((cuenta-ahora)/60)}).`)}
   const ag=Object.entries(p.agotamientos||{}).filter(([,n])=>n>0);
   lineas.push(ag.length?`Agotamiento: ${ag.map(([q,n])=>`${esc(q)} ${n}`).join(" · ")}`:"Nadie tiene agotamiento.");
   el.innerHTML=lineas.join("<br>")}
