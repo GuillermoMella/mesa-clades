@@ -242,6 +242,8 @@ select.oculto{display:none}
 .carga-barra{flex:1 1 100%;height:6px;background:var(--line);border-radius:3px;overflow:hidden}.carga-barra i{display:block;height:100%}
 .sectores-mundo{margin-top:10px}.sectores-mundo svg{display:block;margin:0 auto}.sec-hex{stroke:#0b0e13;stroke-width:1.2;cursor:pointer}.sec-hex.rec{stroke:#c9d4e3;stroke-width:1.6}.sec-hex.sel{stroke:var(--acento,#8b7cf6);stroke-width:3}.sec-hex.niebla{fill:#0b0f15;cursor:default}.sec-nombre{font:600 10px var(--body);fill:#f2d06b;paint-order:stroke;stroke:#0e1116;stroke-width:3px;pointer-events:none;text-anchor:middle}.rio-mundo{stroke:#6cb6ff;stroke-width:1.6;fill:none;pointer-events:none;opacity:.85}.sitio-mundo{fill:none;stroke:#f2d06b;stroke-width:1.6;pointer-events:none}.lugar-nombre{font:600 9px var(--body);fill:#f2d06b;paint-order:stroke;stroke:#0e1116;stroke-width:3px;pointer-events:none}
 .lugar-piso{fill:#f2d06b;stroke:#0b0e13;stroke-width:1.2;pointer-events:none}
+/* Plano de la ciudad (DCL-024) */
+.ciudad-piso{margin:8px 0 12px}#mapaCiudad{border:1px solid var(--line);border-radius:10px;background:#0a1018;overflow:hidden}#mapaCiudad svg{display:block;width:100%;height:auto;max-height:65vh;touch-action:manipulation}.ciudad-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.ciudad-nav b{font:600 13px var(--body)}.cz{stroke:#0b0e13;cursor:pointer}.cz.d1{fill-opacity:.55}.cz.d2{fill-opacity:.35;stroke:#c9d4e3;stroke-opacity:.35}.cz.tenue{fill-opacity:.12;cursor:pointer}.cz.sel{stroke:var(--acento,#8b7cf6);stroke-opacity:1}.cz.desc{stroke:#f2d06b;stroke-opacity:.8;stroke-dasharray:2 2}.cm{fill:none;stroke:#b9a27a;pointer-events:none}.cagua{fill:none;stroke:#6cb6ff;pointer-events:none;opacity:.8}.cn{fill:#e8edf5;paint-order:stroke;stroke:#0a1018;pointer-events:none;text-anchor:middle;font-family:var(--body);font-weight:600}.cp{fill:#f2d06b;stroke:#0b0e13;cursor:pointer}.cp.sel{fill:var(--acento,#8b7cf6)}.caqui{fill:var(--acento,#8b7cf6);stroke:#fff;pointer-events:none}
 .anotado-piso{fill:none;stroke:#e0a458;stroke-width:2;stroke-dasharray:3 2;pointer-events:none}
 .pos-piso{fill:var(--acento,#8b7cf6);stroke:#fff;stroke-width:2;pointer-events:none}
 .lugares-piso-lista{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.lugares-piso-lista button{width:auto;min-height:40px;text-align:left;white-space:normal;padding:7px 10px}
@@ -520,6 +522,12 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
 
   <section class="panel" id="panelPiso" hidden>
     <div class="eyebrow" id="tituloPiso">Mundo</div>
+    <div class="ciudad-piso" id="ciudadPiso" hidden>
+      <div class="ciudad-nav" id="navCiudad"></div>
+      <div id="mapaCiudad" aria-label="Plano de la ciudad: lo que conocen"></div>
+      <div class="estado" id="infoCiudad"></div>
+      <div class="lugares-piso-lista" id="listaCiudad" role="group" aria-label="Lugares de la ciudad"></div>
+    </div>
     <div class="estado" id="provPiso"></div>
     <div id="mapaPiso" aria-label="Mapa del mundo: lo que ya conocen"></div>
     <div class="sectores-mundo" id="sectoresMundo" aria-label="Sectores del hex elegido"></div>
@@ -844,6 +852,57 @@ const horasTexto=h=>h<0.75?`unos ${Math.max(5,Math.round(h*60/5)*5)} minutos`:Ma
 async function cargarNombresMapa(){} // los nombres conocidos ya vienen en la vista del mundo
 const conocidosEn=(p,h,sec)=>[...(p.lugares||[]),...(p.sitios||[])].filter(x=>x.hex===h&&(!sec||x.sector===sec));
 const textoDestino=d=>{const [h,s]=d.split(".");return s?`${h}, sector ${NOMBRE_SECTOR[s]}`:h};
+// ---- Plano de la ciudad (DCL-024) ----
+// Llega la primera capa (distritos, calles y barrios) y lo que el PJ ya conoce. Tocar un distrito acerca el plano y
+// lista sus calles, barrios y lugares; tocar uno lo marca.
+let vistaCiudad=null, selCiudad=null;
+const COLORES_DISTRITO=["#5b7fa6","#a6795b","#7a9a5b","#9a5b8a","#5b9a94","#a69a5b","#7d6fa6","#a65b5b","#5b8aa6","#8aa65b"];
+const centroDe=z=>{let x=0,y=0,n=0;z.partes.forEach(pol=>pol.forEach(([a,b])=>{x+=a;y+=b;n++}));return[x/n,y/n]};
+function cajaDe(listas){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  listas.forEach(pol=>pol.forEach(([a,b])=>{x0=Math.min(x0,a);y0=Math.min(y0,b);x1=Math.max(x1,a);y1=Math.max(y1,b)}));
+  return[x0,y0,x1-x0,y1-y0]}
+function pintarCiudad(c){
+  $("ciudadPiso").hidden=!c; if(!c)return;
+  const distritos=c.zonas.filter(z=>z.nivel===1), color={};
+  distritos.forEach((d,i)=>color[d.id]=COLORES_DISTRITO[i%COLORES_DISTRITO.length]);
+  if(vistaCiudad&&!distritos.some(d=>d.id===vistaCiudad))vistaCiudad=null;
+  const dist=vistaCiudad?distritos.find(d=>d.id===vistaCiudad):null;
+  const [x0,y0,w,h]=cajaDe(dist?dist.partes:[c.intramuros||c.contorno[0]]), m=Math.max(w,h)*0.06, vb=[x0-m,y0-m,w+2*m,h+2*m];
+  const k=vb[2]/100, linea=(pts,cls,ancho)=>`<polyline points="${pts.map(q=>q.join(",")).join(" ")}" class="${cls}" stroke-width="${ancho*k}"/>`;
+  const poli=(z,cls)=>z.partes.map(pol=>`<polygon points="${pol.map(q=>q.join(",")).join(" ")}" data-cz="${z.id}" class="cz ${cls}" style="fill:${color[z.distrito]||"#556"}" stroke-width="${0.25*k}"><title>${esc(z.nombre)}${z.tipo?" · "+esc(z.tipo):""}</title></polygon>`).join("");
+  let svg=c.contorno.map(pol=>`<polygon points="${pol.map(q=>q.join(",")).join(" ")}" fill="#141b24" stroke="none"/>`).join("");
+  svg+=linea(c.costa,"cagua",0.6)+linea(c.rio,"cagua",0.9);
+  distritos.forEach(d=>svg+=poli(d,`d1 ${dist&&d.id!==dist.id?"tenue":""} ${selCiudad===d.id?"sel":""}`));
+  const hijas=c.zonas.filter(z=>z.nivel>=2&&(!dist||z.distrito===dist.id)).sort((a,b)=>a.nivel-b.nivel);
+  hijas.forEach(z=>svg+=poli(z,`d2 ${z.publica?"":"desc"} ${selCiudad===z.id?"sel":""}`));
+  if(c.muralla.length)svg+=linea(c.muralla,"cm",0.7);
+  const fs=(dist?2.4:2.8)*k;
+  if(!dist)distritos.forEach(d=>{const [X,Y]=d.c||centroDe(d);svg+=`<text x="${X}" y="${Y}" class="cn" font-size="${fs}" stroke-width="${fs*0.3}">${esc(d.nombre)}</text>`});
+  else hijas.filter(z=>z.nivel===2||z.id===selCiudad).forEach(z=>{const [X,Y]=z.c||centroDe(z);svg+=`<text x="${X}" y="${Y}" class="cn" font-size="${fs*0.8}" stroke-width="${fs*0.25}">${esc(z.nombre)}</text>`});
+  const pts=c.puntos.filter(q=>!dist||q.distrito===dist.id), r=(dist?1.1:0.8)*k;
+  pts.forEach(q=>{const [X,Y]=q.xy;
+    svg+=`<polygon points="${X},${Y-r} ${X+r},${Y} ${X},${Y+r} ${X-r},${Y}" data-cz="${q.id}" class="cp ${selCiudad===q.id?"sel":""}" stroke-width="${0.25*k}"><title>${esc(q.nombre)}${q.tipo?" · "+esc(q.tipo):""}</title></polygon>`;
+    if(dist&&(selCiudad===q.id||pts.length<=12))svg+=`<text x="${X}" y="${Y-r*1.6}" class="cn" font-size="${fs*0.7}" stroke-width="${fs*0.22}" style="fill:#f2d06b">${esc(q.nombre)}</text>`});
+  if(c.aqui_xy)svg+=`<circle cx="${c.aqui_xy[0]}" cy="${c.aqui_xy[1]}" r="${1.3*k}" class="caqui" stroke-width="${0.35*k}"><title>Aquí están</title></circle>`;
+  $("mapaCiudad").innerHTML=`<svg viewBox="${vb.map(v=>v.toFixed(3)).join(" ")}" preserveAspectRatio="xMidYMid meet">${svg}</svg>`;
+  $("mapaCiudad").querySelectorAll("[data-cz]").forEach(el=>el.onclick=()=>{
+    const id=el.dataset.cz, z=c.zonas.find(x=>x.id===id);
+    if(z&&z.nivel===1&&vistaCiudad!==id){vistaCiudad=id;selCiudad=null}else selCiudad=id;
+    pintarCiudad(c)});
+  // Navegación, ficha del elegido y lista
+  const nombreAqui=[...c.zonas,...c.puntos].find(x=>x.id===c.aqui);
+  $("navCiudad").innerHTML=`<b>${esc(c.nombre)}${dist?" › "+esc(dist.nombre):""}</b>`+(dist?` <button type="button" class="sec" id="ciudadEntera">Ver toda la ciudad</button>`:"")
+    +(nombreAqui?` <span class="estado">Están en ${esc(nombreAqui.nombre)}.</span>`:"");
+  if(dist)$("ciudadEntera").onclick=()=>{vistaCiudad=null;selCiudad=null;pintarCiudad(c)};
+  const elegido=[...c.zonas,...c.puntos].find(x=>x.id===selCiudad);
+  $("infoCiudad").innerHTML=elegido?`<b>${esc(elegido.nombre)}</b>${elegido.tipo?": "+esc(elegido.tipo):""}${elegido.id===c.aqui?" · están aquí":""}`
+    :dist?"Toca una calle, un barrio o un lugar para marcarlo.":"Toca un distrito para verlo de cerca. Los lugares se agregan al plano a medida que los conocen.";
+  const items=dist?[...hijas.filter(z=>z.nivel===2).map(z=>({...z,m:"▱"})),...hijas.filter(z=>z.nivel>2).map(z=>({...z,m:"▫"})),...pts.map(q=>({...q,m:"◆"}))]
+    :distritos.map(d=>({...d,m:"▰"}));
+  $("listaCiudad").innerHTML=items.map(x=>`<button type="button" class="sec" data-lc="${x.id}" aria-pressed="${selCiudad===x.id}">${x.m} ${esc(x.nombre)}</button>`).join("");
+  $("listaCiudad").querySelectorAll("[data-lc]").forEach(b=>b.onclick=()=>{const id=b.dataset.lc;
+    if(!dist){vistaCiudad=id;selCiudad=null}else selCiudad=id; pintarCiudad(c)});
+}
 function pintarLugaresPiso(p){
   const todos=[...(p.lugares||[]).map(x=>({...x,m:"◆"})),...(p.sitios||[]).map(x=>({...x,m:"◇"}))];
   $("lugaresPiso").innerHTML=todos.map(x=>`<button type="button" class="sec" data-destino="${x.hex}.${x.sector}" aria-pressed="${selPiso===x.hex+"."+x.sector}">${x.m} ${esc(x.nombre)}</button>`).join("");
@@ -1034,6 +1093,7 @@ function pintarPiso(p){
     +`<span><i style="background:transparent;border:1.5px solid #c9d4e3"></i>recorrido</span><span><i style="background:var(--acento,#8b7cf6);border-radius:50%"></i>dónde están</span>`;
   $("mapaPiso").querySelectorAll("[data-hm]").forEach(el=>el.onclick=()=>{selPiso=el.dataset.hm;hexVista=el.dataset.hm;pintarPiso(p)});
   pintarLugaresPiso(p);
+  pintarCiudad(p.ciudad);
   preseleccion();
 }
 // Los siete sectores del hex elegido (o del hex donde están): cada uno a unos 11 km del de al lado.
