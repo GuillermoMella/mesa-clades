@@ -243,7 +243,7 @@ select.oculto{display:none}
 .sectores-mundo{margin-top:10px}.sectores-mundo svg{display:block;margin:0 auto}.sec-hex{stroke:#0b0e13;stroke-width:1.2;cursor:pointer}.sec-hex.rec{stroke:#c9d4e3;stroke-width:1.6}.sec-hex.sel{stroke:var(--acento,#8b7cf6);stroke-width:3}.sec-hex.niebla{fill:#0b0f15;cursor:default}.sec-nombre{font:600 10px var(--body);fill:#f2d06b;paint-order:stroke;stroke:#0e1116;stroke-width:3px;pointer-events:none;text-anchor:middle}.rio-mundo{stroke:#6cb6ff;stroke-width:1.6;fill:none;pointer-events:none;opacity:.85}.sitio-mundo{fill:none;stroke:#f2d06b;stroke-width:1.6;pointer-events:none}.lugar-nombre{font:600 9px var(--body);fill:#f2d06b;paint-order:stroke;stroke:#0e1116;stroke-width:3px;pointer-events:none}
 .lugar-piso{fill:#f2d06b;stroke:#0b0e13;stroke-width:1.2;pointer-events:none}
 /* Plano de la ciudad (DCL-024) */
-.ciudad-piso{margin:8px 0 12px}#mapaCiudad{border:1px solid var(--line);border-radius:10px;background:#0a1018;overflow:hidden}#mapaCiudad svg{display:block;width:100%;height:auto;max-height:65vh;touch-action:manipulation}.ciudad-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.ciudad-nav b{font:600 13px var(--body)}.cz{stroke:#0b0e13;cursor:pointer}.cz.d1{fill-opacity:.55}.cz.d2{fill-opacity:.35;stroke:#c9d4e3;stroke-opacity:.35}.cz.tenue{fill-opacity:.12;cursor:pointer}.cz.sel{stroke:var(--acento,#8b7cf6);stroke-opacity:1}.cz.desc{stroke:#f2d06b;stroke-opacity:.8;stroke-dasharray:2 2}.cm{fill:none;stroke:#b9a27a;pointer-events:none}.cagua{fill:none;stroke:#6cb6ff;pointer-events:none;opacity:.8}.cn{fill:#e8edf5;paint-order:stroke;stroke:#0a1018;pointer-events:none;text-anchor:middle;font-family:var(--body);font-weight:600}.cp{fill:#f2d06b;stroke:#0b0e13;cursor:pointer}.cp.sel{fill:var(--acento,#8b7cf6)}.caqui{fill:var(--acento,#8b7cf6);stroke:#fff;pointer-events:none}
+.ciudad-piso{margin:8px 0 12px}#mapaCiudad{border:1px solid var(--line);border-radius:10px;background:#0a1018;overflow:hidden}#mapaCiudad svg{display:block;width:100%;height:auto;max-height:65vh;touch-action:none;cursor:grab}#mapaCiudad{position:relative}.czoom{position:absolute;right:6px;top:6px;display:flex;flex-direction:column;gap:4px}.czoom button{width:32px;height:32px;padding:0;font-size:18px;line-height:1}.ciudad-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}.ciudad-nav b{font:600 13px var(--body)}.cz{stroke:#0b0e13;cursor:pointer}.cz.d1{fill-opacity:.55}.cz.d2{fill-opacity:.35;stroke:#c9d4e3;stroke-opacity:.35}.cz.tenue{fill-opacity:.12;cursor:pointer}.cz.sel{stroke:var(--acento,#8b7cf6);stroke-opacity:1}.cz.desc{stroke:#f2d06b;stroke-opacity:.8;stroke-dasharray:2 2}.cm{fill:none;stroke:#b9a27a;pointer-events:none}.cagua{fill:none;stroke:#6cb6ff;pointer-events:none;opacity:.8}.cn{fill:#e8edf5;paint-order:stroke;stroke:#0a1018;pointer-events:none;text-anchor:middle;font-family:var(--body);font-weight:600}.cp{fill:#f2d06b;stroke:#0b0e13;cursor:pointer}.cp.sel{fill:var(--acento,#8b7cf6)}.caqui{fill:var(--acento,#8b7cf6);stroke:#fff;pointer-events:none}
 .anotado-piso{fill:none;stroke:#e0a458;stroke-width:2;stroke-dasharray:3 2;pointer-events:none}
 .pos-piso{fill:var(--acento,#8b7cf6);stroke:#fff;stroke-width:2;pointer-events:none}
 .lugares-piso-lista{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.lugares-piso-lista button{width:auto;min-height:40px;text-align:left;white-space:normal;padding:7px 10px}
@@ -861,6 +861,40 @@ const centroDe=z=>{let x=0,y=0,n=0;z.partes.forEach(pol=>pol.forEach(([a,b])=>{x
 function cajaDe(listas){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   listas.forEach(pol=>pol.forEach(([a,b])=>{x0=Math.min(x0,a);y0=Math.min(y0,b);x1=Math.max(x1,a);y1=Math.max(y1,b)}));
   return[x0,y0,x1-x0,y1-y0]}
+let zoomCiudad={clave:null,vb:null};
+function gestosCiudad(c,base){
+  const el=$("mapaCiudad").querySelector("svg"); if(!el)return;
+  let vb=(zoomCiudad.vb||base).slice(), t=null;
+  const fijar=v=>{const min=base[2]/40, max=base[2]*1.5, f=Math.min(Math.max(v[2],min),max)/v[2];
+      const cx=v[0]+v[2]/2, cy=v[1]+v[3]/2; v=[cx-v[2]*f/2,cy-v[3]*f/2,v[2]*f,v[3]*f];
+      vb=v; zoomCiudad.vb=v; el.setAttribute("viewBox",v.map(x=>x.toFixed(4)).join(" "))};
+  const repintar=()=>{clearTimeout(t);t=setTimeout(()=>pintarCiudad(c),180)};
+  const escala=()=>{const r=el.getBoundingClientRect();return Math.max(vb[2]/r.width,vb[3]/r.height)};
+  const aSvg=(px,py)=>{const r=el.getBoundingClientRect(),s=escala();
+      return[vb[0]+vb[2]/2+(px-r.left-r.width/2)*s, vb[1]+vb[3]/2+(py-r.top-r.height/2)*s]};
+  const zoom=(f,[X,Y])=>fijar([X-(X-vb[0])*f,Y-(Y-vb[1])*f,vb[2]*f,vb[3]*f]);
+  el.addEventListener("wheel",e=>{e.preventDefault();zoom(e.deltaY>0?1.2:1/1.2,aSvg(e.clientX,e.clientY));repintar()},{passive:false});
+  $("mapaCiudad").querySelectorAll("[data-zc]").forEach(b=>b.onclick=()=>{zoom(+b.dataset.zc,[vb[0]+vb[2]/2,vb[1]+vb[3]/2]);pintarCiudad(c)});
+  const dedos=new Map(); let inicio=null;
+  const estado=()=>{const p=[...dedos.values()];
+      return p.length>1?{d:Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]),m:[(p[0][0]+p[1][0])/2,(p[0][1]+p[1][1])/2]}:{d:0,m:p[0]}};
+  el.addEventListener("pointerdown",e=>{dedos.set(e.pointerId,[e.clientX,e.clientY]);inicio={...estado(),vb:vb.slice(),s:escala(),n:dedos.size};zoomCiudad.arrastro=false});
+  el.addEventListener("pointermove",e=>{if(!dedos.has(e.pointerId)||!inicio)return;
+    dedos.set(e.pointerId,[e.clientX,e.clientY]); const a=estado();
+    if(dedos.size!==inicio.n){inicio={...a,vb:vb.slice(),s:escala(),n:dedos.size};return}
+    const dx=a.m[0]-inicio.m[0], dy=a.m[1]-inicio.m[1];
+    if(!zoomCiudad.arrastro&&Math.hypot(dx,dy)<5&&!(a.d&&Math.abs(a.d-inicio.d)>5))return;
+    if(!zoomCiudad.arrastro){zoomCiudad.arrastro=true;try{el.setPointerCapture(e.pointerId)}catch(_){}}
+    const v=inicio.vb, s=inicio.s;
+    let nv=[v[0]-dx*s,v[1]-dy*s,v[2],v[3]];
+    if(a.d&&inicio.d){const f=inicio.d/a.d, r=el.getBoundingClientRect();
+      const X=v[0]+v[2]/2+(inicio.m[0]-r.left-r.width/2)*s, Y=v[1]+v[3]/2+(inicio.m[1]-r.top-r.height/2)*s;
+      nv=[X-(X-v[0])*f-dx*s*f,Y-(Y-v[1])*f-dy*s*f,v[2]*f,v[3]*f]}
+    vb=nv; zoomCiudad.vb=nv; el.setAttribute("viewBox",nv.map(x=>x.toFixed(4)).join(" "))});
+  const soltar=e=>{dedos.delete(e.pointerId); if(dedos.size)inicio={...estado(),vb:vb.slice(),s:escala(),n:dedos.size};
+    else{inicio=null; if(zoomCiudad.arrastro){repintar();setTimeout(()=>zoomCiudad.arrastro=false,0)}}};
+  el.addEventListener("pointerup",soltar);el.addEventListener("pointercancel",soltar);
+}
 function pintarCiudad(c){
   $("ciudadPiso").hidden=!c; if(!c)return;
   const distritos=c.zonas.filter(z=>z.nivel===1), color={};
@@ -868,7 +902,10 @@ function pintarCiudad(c){
   if(vistaCiudad&&!distritos.some(d=>d.id===vistaCiudad))vistaCiudad=null;
   const dist=vistaCiudad?distritos.find(d=>d.id===vistaCiudad):null;
   const [x0,y0,w,h]=cajaDe(dist?dist.partes:[c.intramuros||c.contorno[0]]), m=Math.max(w,h)*0.06, vb=[x0-m,y0-m,w+2*m,h+2*m];
-  const k=vb[2]/100, linea=(pts,cls,ancho)=>`<polyline points="${pts.map(q=>q.join(",")).join(" ")}" class="${cls}" stroke-width="${ancho*k}"/>`;
+  // Zoom con la rueda, los dedos o los botones: el recuadro de la vista se guarda mientras no cambie el distrito.
+  const claveZoom=vistaCiudad||"*"; if(zoomCiudad.clave!==claveZoom)zoomCiudad={clave:claveZoom,vb:null};
+  const vz=zoomCiudad.vb||vb;
+  const k=vz[2]/100, linea=(pts,cls,ancho)=>`<polyline points="${pts.map(q=>q.join(",")).join(" ")}" class="${cls}" stroke-width="${ancho*k}"/>`;
   const poli=(z,cls)=>z.partes.map(pol=>`<polygon points="${pol.map(q=>q.join(",")).join(" ")}" data-cz="${z.id}" class="cz ${cls}" style="fill:${color[z.distrito]||"#556"}" stroke-width="${0.25*k}"><title>${esc(z.nombre)}${z.tipo?" · "+esc(z.tipo):""}</title></polygon>`).join("");
   let svg=c.contorno.map(pol=>`<polygon points="${pol.map(q=>q.join(",")).join(" ")}" fill="#141b24" stroke="none"/>`).join("");
   svg+=linea(c.costa,"cagua",0.6)+linea(c.rio,"cagua",0.9);
@@ -876,19 +913,22 @@ function pintarCiudad(c){
   const hijas=c.zonas.filter(z=>z.nivel>=2&&(!dist||z.distrito===dist.id)).sort((a,b)=>a.nivel-b.nivel);
   hijas.forEach(z=>svg+=poli(z,`d2 ${z.publica?"":"desc"} ${selCiudad===z.id?"sel":""}`));
   if(c.muralla.length)svg+=linea(c.muralla,"cm",0.7);
-  const fs=(dist?2.4:2.8)*k;
+  const fs=(dist?2.4:2.8)*k, acercado=!!zoomCiudad.vb&&zoomCiudad.vb[2]<vb[2]*0.7;
   if(!dist)distritos.forEach(d=>{const [X,Y]=d.c||centroDe(d);svg+=`<text x="${X}" y="${Y}" class="cn" font-size="${fs}" stroke-width="${fs*0.3}">${esc(d.nombre)}</text>`});
   else hijas.filter(z=>z.nivel===2||z.id===selCiudad).forEach(z=>{const [X,Y]=z.c||centroDe(z);svg+=`<text x="${X}" y="${Y}" class="cn" font-size="${fs*0.8}" stroke-width="${fs*0.25}">${esc(z.nombre)}</text>`});
   // De cerca, también los lugares de los distritos vecinos que caen en el recuadro (una puerta mira a dos barrios).
-  const enCaja=([X,Y])=>X>=vb[0]&&X<=vb[0]+vb[2]&&Y>=vb[1]&&Y<=vb[1]+vb[3];
+  const enCaja=([X,Y],b=vb)=>X>=b[0]&&X<=b[0]+b[2]&&Y>=b[1]&&Y<=b[1]+b[3];
   const pts=c.puntos.filter(q=>!dist||q.distrito===dist.id||enCaja(q.xy))
     .sort((a,b)=>(dist&&b.distrito===dist.id)-(dist&&a.distrito===dist.id)), r=(dist?1.1:0.8)*k;
   pts.forEach(q=>{const [X,Y]=q.xy;
     svg+=`<polygon points="${X},${Y-r} ${X+r},${Y} ${X},${Y+r} ${X-r},${Y}" data-cz="${q.id}" class="cp ${selCiudad===q.id?"sel":""}" stroke-width="${0.25*k}"><title>${esc(q.nombre)}${q.tipo?" · "+esc(q.tipo):""}</title></polygon>`;
-    if(dist&&(selCiudad===q.id||pts.length<=12))svg+=`<text x="${X}" y="${Y-r*1.6}" class="cn" font-size="${fs*0.7}" stroke-width="${fs*0.22}" style="fill:#f2d06b">${esc(q.nombre)}</text>`});
+    if((dist||acercado)&&(selCiudad===q.id||pts.filter(p=>enCaja(p.xy,vz)).length<=12))svg+=`<text x="${X}" y="${Y-r*1.6}" class="cn" font-size="${fs*0.7}" stroke-width="${fs*0.22}" style="fill:#f2d06b">${esc(q.nombre)}</text>`});
   if(c.aqui_xy)svg+=`<circle cx="${c.aqui_xy[0]}" cy="${c.aqui_xy[1]}" r="${1.3*k}" class="caqui" stroke-width="${0.35*k}"><title>Aquí están</title></circle>`;
-  $("mapaCiudad").innerHTML=`<svg viewBox="${vb.map(v=>v.toFixed(3)).join(" ")}" preserveAspectRatio="xMidYMid meet">${svg}</svg>`;
+  $("mapaCiudad").innerHTML=`<svg viewBox="${vz.map(v=>v.toFixed(3)).join(" ")}" preserveAspectRatio="xMidYMid meet">${svg}</svg>`
+    +`<div class="czoom"><button type="button" class="sec" data-zc="0.67" aria-label="Acercar">＋</button><button type="button" class="sec" data-zc="1.5" aria-label="Alejar">−</button></div>`;
+  gestosCiudad(c,vb);
   $("mapaCiudad").querySelectorAll("[data-cz]").forEach(el=>el.onclick=()=>{
+    if(zoomCiudad.arrastro)return;
     const id=el.dataset.cz, z=c.zonas.find(x=>x.id===id);
     if(z&&z.nivel===1&&vistaCiudad!==id){vistaCiudad=id;selCiudad=null}else selCiudad=id;
     pintarCiudad(c)});
