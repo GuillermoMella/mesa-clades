@@ -879,7 +879,10 @@ function pintarCiudad(c){
   const fs=(dist?2.4:2.8)*k;
   if(!dist)distritos.forEach(d=>{const [X,Y]=d.c||centroDe(d);svg+=`<text x="${X}" y="${Y}" class="cn" font-size="${fs}" stroke-width="${fs*0.3}">${esc(d.nombre)}</text>`});
   else hijas.filter(z=>z.nivel===2||z.id===selCiudad).forEach(z=>{const [X,Y]=z.c||centroDe(z);svg+=`<text x="${X}" y="${Y}" class="cn" font-size="${fs*0.8}" stroke-width="${fs*0.25}">${esc(z.nombre)}</text>`});
-  const pts=c.puntos.filter(q=>!dist||q.distrito===dist.id), r=(dist?1.1:0.8)*k;
+  // De cerca, también los lugares de los distritos vecinos que caen en el recuadro (una puerta mira a dos barrios).
+  const enCaja=([X,Y])=>X>=vb[0]&&X<=vb[0]+vb[2]&&Y>=vb[1]&&Y<=vb[1]+vb[3];
+  const pts=c.puntos.filter(q=>!dist||q.distrito===dist.id||enCaja(q.xy))
+    .sort((a,b)=>(dist&&b.distrito===dist.id)-(dist&&a.distrito===dist.id)), r=(dist?1.1:0.8)*k;
   pts.forEach(q=>{const [X,Y]=q.xy;
     svg+=`<polygon points="${X},${Y-r} ${X+r},${Y} ${X},${Y+r} ${X-r},${Y}" data-cz="${q.id}" class="cp ${selCiudad===q.id?"sel":""}" stroke-width="${0.25*k}"><title>${esc(q.nombre)}${q.tipo?" · "+esc(q.tipo):""}</title></polygon>`;
     if(dist&&(selCiudad===q.id||pts.length<=12))svg+=`<text x="${X}" y="${Y-r*1.6}" class="cn" font-size="${fs*0.7}" stroke-width="${fs*0.22}" style="fill:#f2d06b">${esc(q.nombre)}</text>`});
