@@ -344,7 +344,7 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
 .sim-car{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.sim-car label{display:flex;flex-direction:column;font-size:.85rem}.sim-car input{width:100%}
 .sim-fila{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px}.sim-fila label{display:flex;flex-direction:column;font-size:.85rem}
 .sim-nivel{border-top:1px solid var(--line);padding:8px 0}.sim-cab{margin-bottom:4px}.sim-texto{white-space:pre-wrap;font-size:.9rem;padding:4px 0 8px 12px}
-.sim-car-final{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}#simConjuros details{margin:2px 0}.sim-nv{margin:10px 0 2px;font-weight:600;border-bottom:1px solid var(--line)}
+.sim-car-final{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}#simConjuros details{margin:2px 0}.sim-nv{margin:10px 0 2px;font-weight:600;border-bottom:1px solid var(--line)}.sim-cj{display:flex;gap:8px;align-items:flex-start}.sim-cj>input{margin-top:5px;flex:none;width:18px;height:18px}.sim-cj>details{flex:1;min-width:0}.sim-cuenta{font-weight:400}.sim-cuenta.bad{color:var(--bad,#c33)}.sim-check{flex-direction:row;align-items:center;gap:6px}
 @media (max-width:600px){.sim-car{grid-template-columns:repeat(3,minmax(0,1fr))}}.ancla-subvista{scroll-margin-top:100px}
 @media(max-width:600px){.wrap{padding:10px;gap:10px}#cabeceraApp>div:first-of-type{display:none}#cabeceraApp button{min-height:44px}#cabeceraApp #listo{min-width:90px}#borradorTurno{margin:0}}
 /* Hoja de juego: conjuros, invocaciones y rasgos con su texto oficial desplegable. */
@@ -464,7 +464,7 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
         </div>
         <section class="panel" id="simNivelesVista"><div class="eyebrow">Nivel por nivel</div><div id="simNiveles"></div></section>
         <section class="panel" id="simConjurosVista"><div class="eyebrow">Conjuros e invocaciones a su alcance</div>
-          <div class="sim-fila"><label>Buscar<input type="search" id="simBuscar" placeholder="nombre del conjuro o invocación"></label></div>
+          <div class="sim-fila"><label>Buscar<input type="search" id="simBuscar" name="sim-buscar" autocomplete="off" placeholder="nombre del conjuro o invocación"></label><label class="sim-check"><input type="checkbox" id="simSoloElegidos"> Solo los elegidos</label></div>
           <div id="simConjuros"></div></section>
       </div>
     </div>
@@ -2869,6 +2869,7 @@ let simCat=null;
 const SIM_CARS=["FUE","DES","CON","INT","SAB","CAR"];
 const SIM_NOMBRE_CAR={fuerza:"FUE",destreza:"DES",constitucion:"CON",inteligencia:"INT",sabiduria:"SAB",carisma:"CAR"};
 let sim=(()=>{try{return JSON.parse(localStorage.getItem("clades_simulacion")||"null")}catch(e){return null}})()||{base:{FUE:10,DES:10,CON:10,INT:10,SAB:10,CAR:10},raza:"humano",subraza:"",elegir:[],niveles:[],subclases:{},mejoras:{}};
+sim.conjuros=sim.conjuros||{};sim.invocaciones=sim.invocaciones||[];
 function guardarSim(){try{localStorage.setItem("clades_simulacion",JSON.stringify(sim))}catch(e){}}
 const simMod=v=>Math.floor((v-10)/2), simSigno=n=>(n>=0?"+":"")+n;
 async function cargarSim(){
@@ -2906,8 +2907,8 @@ function armarSim(){
       const falta=[...simRequisitos(sim.niveles[0]),...simRequisitos(c)].filter(g=>!g.some(([car,v])=>simFinales()[car]>=v));
       if(falta.length){av.className="estado bad";av.textContent="Multiclase: no cumple "+falta.map(g=>g.map(([car,v])=>`${car} ${v}`).join(" o ")).join(" y ")+" (PHB, cap. 6).";return}}
     sim.niveles.push(c);guardarSim();pintarSim()};
-  $("simQuitar").onclick=()=>{const c=sim.niveles.pop();if(c&&!sim.niveles.includes(c))delete sim.subclases[c];delete sim.mejoras[sim.niveles.length+1];guardarSim();pintarSim()};
-  $("simBuscar").oninput=()=>pintarSimConjuros();
+  $("simQuitar").onclick=()=>{const c=sim.niveles.pop();if(c&&!sim.niveles.includes(c)){delete sim.subclases[c];delete sim.conjuros[c];if(c==="brujo")sim.invocaciones=[]}delete sim.mejoras[sim.niveles.length+1];guardarSim();pintarSim()};
+  $("simBuscar").oninput=()=>pintarSimConjuros();$("simSoloElegidos").onchange=()=>pintarSimConjuros();
   pintarSim();
 }
 function simRequisitos(clase){
@@ -2974,32 +2975,70 @@ function pintarSim(){
     <div>Nivel ${total} · competencia ${simSigno(comp)} · <b>${pg}</b> PG (promedio) · salvaciones: ${salv.join(", ")||"—"}</div>
     ${tablas}
     <div>Espacios de conjuro: ${esp.length?esp.map((n,k)=>`nivel ${k+1}: ${n}`).join(" · "):"—"}</div>
-    ${pacto?`<div>Espacios de pacto: ${pacto.espacios_conjuro} de nivel ${pacto.nivel_espacios} (vuelven con descanso corto)</div>`:""}`;
+    ${pacto?`<div>Espacios de pacto: ${pacto.espacios_conjuro} de nivel ${pacto.nivel_espacios} (vuelven con descanso corto)</div>`:""}<div id="simElegidos"></div>`;
   pintarSimConjuros();
 }
+// Topes de cada clase (PHB, XGE, TCE): trucos y conjuros conocidos de su tabla; los que preparan, modificador + nivel
+// (o la mitad); el mago elige los de su libro (6 + 2 por nivel). Los tercios de mago (Caballero y Embaucador arcanos) usan
+// la lista del mago y su propia tabla del PHB.
+const SIM_TERCIO_TRUCOS=n=>n>=10?3:n>=3?2:0,SIM_TERCIO_CONOC=[0,0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13];
+function simLanzador(c,n){
+  const cl=simCat.clases[c],lz=cl.lanzador,sub=sim.subclases[c]&&cl.subclases[sim.subclases[c]],f=simFinales(),v=simFila(c,n);
+  if(sub?.tercio)return {lista:"mago",car:"INT",trucos:SIM_TERCIO_TRUCOS(n),conjuros:SIM_TERCIO_CONOC[n]||0,modo:"conocidos"};
+  if(c==="artifice")return {lista:"artifice",car:"INT",trucos:v.trucos_conocidos||0,conjuros:Math.max(1,simMod(f.INT)+Math.ceil(n/2)),modo:"preparados"};
+  if(!lz)return null;
+  const m=simMod(f[lz.caracteristica]),t=lz.trucos?lz.trucos[n-1]:0;
+  if(lz.conocidos)return {lista:lz.lista,car:lz.caracteristica,trucos:t,conjuros:lz.conocidos[n-1],modo:"conocidos"};
+  if(lz.libro)return {lista:lz.lista,car:lz.caracteristica,trucos:t,conjuros:6+2*(n-1),modo:"libro",prep:Math.max(1,m+n)};
+  return {lista:lz.lista,car:lz.caracteristica,trucos:t,conjuros:Math.max(1,m+(lz.preparados==="mitad"?Math.floor(n/2):n)),modo:"preparados"};
+}
+const SIM_MODO={conocidos:"conocidos",preparados:"preparados",libro:"en el libro"};
+function simCuentas(){
+  // Cuenta lo elegido contra el tope de cada clase y bloquea las casillas sin marcar cuando se llega al tope.
+  const cuenta=simConteo(sim.niveles.length),cont=$("simConjuros"),res=[];
+  for(const [c,n] of Object.entries(cuenta)){const L=simLanzador(c,n);if(!L)continue;
+    const el=sim.conjuros[c]||[],porNv=x=>(simCat.conjuros.find(y=>y.n===x)||{}).nv,tr=el.filter(x=>porNv(x)===0).length,cj=el.length-tr;
+    const tope={trucos:[tr,L.trucos],conjuros:[cj,L.conjuros]};
+    for(const s of cont.querySelectorAll(`.sim-cuenta[data-c="${c}"]`)){const [a,b]=tope[s.dataset.t];s.textContent=`${a} de ${b} ${s.dataset.t==="trucos"?"conocidos":SIM_MODO[L.modo]}`;s.classList.toggle("bad",a>b)}
+    for(const i of cont.querySelectorAll(`input[data-c="${c}"]`)){const [a,b]=tope[i.dataset.t];i.disabled=!i.checked&&a>=b}
+    if(el.length)res.push(`<div><b>${esc(simCat.clases[c].nombre)}</b>: ${el.slice().sort((a,b)=>(porNv(a)-porNv(b))||a.localeCompare(b,"es")).map(esc).join(", ")}${L.modo==="libro"?` · prepara ${L.prep} por día`:""}</div>`)}
+  if(cuenta.brujo){const tope=simFila("brujo",cuenta.brujo).invocaciones_conocidas||0,a=sim.invocaciones.length;
+    for(const s of cont.querySelectorAll('.sim-cuenta[data-t="inv"]')){s.textContent=`${a} de ${tope} conocidas`;s.classList.toggle("bad",a>tope)}
+    for(const i of cont.querySelectorAll('input[data-t="inv"]'))i.disabled=(!i.checked&&a>=tope)||i.dataset.lock==="1";
+    if(a)res.push(`<div><b>Invocaciones</b>: ${sim.invocaciones.slice().sort((a,b)=>a.localeCompare(b,"es")).map(esc).join(", ")}</div>`)}
+  const e=$("simElegidos");if(e)e.innerHTML=res.length?`<div class="eyebrow" style="margin-top:8px">Elegidos</div>${res.join("")}`:"";
+}
 function pintarSimConjuros(){
-  if(!simCat)return;const cuenta=simConteo(sim.niveles.length),q=($("simBuscar").value||"").toLowerCase(),cont=$("simConjuros");
+  if(!simCat)return;const cuenta=simConteo(sim.niveles.length),q=($("simBuscar").value||"").toLowerCase(),solo=$("simSoloElegidos").checked,cont=$("simConjuros");
   const grupos=[];
-  for(const [c,n] of Object.entries(cuenta)){const max=simNivelMaxConjuro(c,n);const lista=simCat.clases[c].lanzador?.lista||c;
-    if(!max&&!simFila(c,n).trucos_conocidos)continue;
+  for(const [c,n] of Object.entries(cuenta)){const max=simNivelMaxConjuro(c,n),L=simLanzador(c,n);const lista=L?.lista||c;
+    if(!max&&!(L?.trucos))continue;
     // Lo que da la subclase: el brujo amplía su lista (por nivel de conjuro); las demás lo tienen siempre (por nivel de clase).
     const sub=sim.subclases[c]&&simCat.clases[c].subclases[sim.subclases[c]],amp=new Set(),siempre=[];
     for(const a of sub?.ampliados||[]){if(sub.modo_ampliados==="lista"){if(a.nivel<=max)a.conjuros.forEach(n=>amp.add(n))}else if(a.nivel<=n)siempre.push(...a.conjuros)}
-    const fila=x=>`<details><summary>${esc(x.n)} · nivel ${x.nv}${x.conc?" · concentración":""}${x.rit?" · ritual":""}${amp.has(x.n)?" · lista ampliada":""} <span class="fj-fuente">${esc(x.libro)}</span></summary><div class="sim-texto"><i>${esc(x.t)} · ${esc(x.al)} · ${esc(x.dur)}</i><br>${esc(x.txt)}</div></details>`;
-    const cj=simCat.conjuros.filter(x=>(x.clases.includes(lista)||amp.has(x.n))&&x.nv<=max&&(!q||x.n.toLowerCase().includes(q)));
+    const el=new Set(sim.conjuros[c]||[]);
+    const det=x=>`<details><summary>${esc(x.n)}${x.conc?" · concentración":""}${x.rit?" · ritual":""}${amp.has(x.n)?" · lista ampliada":""} <span class="fj-fuente">${esc(x.libro)}</span></summary><div class="sim-texto"><i>${esc(x.t)} · ${esc(x.al)} · ${esc(x.dur)}</i><br>${esc(x.txt)}</div></details>`;
+    const fila=x=>`<div class="sim-cj"><input type="checkbox" aria-label="Elegir ${esc(x.n)}" data-c="${c}" data-t="${x.nv?"conjuros":"trucos"}" data-n="${esc(x.n)}"${el.has(x.n)?" checked":""}>${det(x)}</div>`;
+    const filtro=x=>(!q||x.n.toLowerCase().includes(q))&&(!solo||el.has(x.n));
+    const cj=simCat.conjuros.filter(x=>(x.clases.includes(lista)||amp.has(x.n))&&x.nv<=max&&!siempre.includes(x.n)&&filtro(x));
     const sp=simCat.conjuros.filter(x=>siempre.includes(x.n)&&(!q||x.n.toLowerCase().includes(q)));
     // Separados por nivel (trucos primero) y en orden alfabético; el libro queda como etiqueta.
-    const porNivel=lista=>{const g={};for(const x of lista)(g[x.nv]=g[x.nv]||[]).push(x);
-      return Object.keys(g).map(Number).sort((a,b)=>a-b).map(nv=>`<div class="sim-nv">${nv?"Nivel "+nv:"Trucos"} (${g[nv].length})</div>${g[nv].sort((a,b)=>a.n.localeCompare(b.n,"es")).map(fila).join("")}`).join("")};
-    if(sp.length)grupos.push(`<details open><summary><b>${esc(sim.subclases[c])}</b>: siempre conocidos o preparados (${sp.length})</summary>${porNivel(sp)}</details>`);
-    grupos.push(`<details open><summary><b>${esc(simCat.clases[c].nombre)}</b>: trucos y conjuros hasta nivel ${max} (${cj.length})</summary>${porNivel(cj)}</details>`)}
-  if(cuenta.brujo){const inv=simCat.invocaciones.filter(x=>!q||x.n.toLowerCase().includes(q));
-    grupos.push(`<details><summary><b>Invocaciones</b> (${simFila("brujo",cuenta.brujo).invocaciones_conocidas||0} conocidas a brujo ${cuenta.brujo})</summary>${inv.map(x=>{const m=/nivel (\d+)/i.exec(x.req),ok=!m||cuenta.brujo>=Number(m[1]);
-      return `<details><summary>${ok?"":"🔒 "}${esc(x.n)}${x.req?` <span class="fj-fuente">${esc(x.req)}</span>`:""}</summary><div class="sim-texto">${esc(x.txt)}</div></details>`}).join("")}</details>`)}
+    const porNivel=(lista,f)=>{const g={};for(const x of lista)(g[x.nv]=g[x.nv]||[]).push(x);
+      return Object.keys(g).map(Number).sort((a,b)=>a-b).map(nv=>`<div class="sim-nv">${nv?"Nivel "+nv:"Trucos"} (${g[nv].length})</div>${g[nv].sort((a,b)=>a.n.localeCompare(b.n,"es")).map(f).join("")}`).join("")};
+    if(sp.length)grupos.push(`<details open><summary><b>${esc(sim.subclases[c])}</b>: siempre conocidos o preparados, no cuentan para el tope (${sp.length})</summary>${porNivel(sp,det)}</details>`);
+    grupos.push(`<details open><summary><b>${esc(simCat.clases[c].nombre)}</b> hasta nivel ${max}: trucos <span class="sim-cuenta" data-c="${c}" data-t="trucos"></span> · conjuros <span class="sim-cuenta" data-c="${c}" data-t="conjuros"></span></summary>${porNivel(cj,fila)}</details>`)}
+  if(cuenta.brujo){const inv=simCat.invocaciones.filter(x=>(!q||x.n.toLowerCase().includes(q))&&(!solo||sim.invocaciones.includes(x.n)));
+    grupos.push(`<details open><summary><b>Invocaciones</b> a brujo ${cuenta.brujo}: <span class="sim-cuenta" data-t="inv"></span></summary>${inv.map(x=>{const m=/nivel (\d+)/i.exec(x.req),ok=!m||cuenta.brujo>=Number(m[1]),ch=sim.invocaciones.includes(x.n);
+      return `<div class="sim-cj"><input type="checkbox" aria-label="Elegir ${esc(x.n)}" data-t="inv" data-n="${esc(x.n)}" data-lock="${ok||ch?0:1}"${ch?" checked":""}><details><summary>${ok?"":"🔒 "}${esc(x.n)}${x.req?` <span class="fj-fuente">${esc(x.req)}</span>`:""}</summary><div class="sim-texto">${esc(x.txt)}</div></details></div>`}).join("")}</details>`)}
   cont.innerHTML=grupos.join("")||'<div class="estado">Todavía no tiene clases que lancen conjuros.</div>';
+  simCuentas();
 }
+$("simConjuros").addEventListener("change",ev=>{const i=ev.target;if(!i.matches('input[type="checkbox"]'))return;const n=i.dataset.n;
+  if(i.dataset.t==="inv"){sim.invocaciones=sim.invocaciones.filter(x=>x!==n);if(i.checked)sim.invocaciones.push(n)}
+  else{const c=i.dataset.c,l=(sim.conjuros[c]||[]).filter(x=>x!==n);if(i.checked)l.push(n);sim.conjuros[c]=l}
+  guardarSim();simCuentas()});
 $("cerrarSim").addEventListener("click",()=>{$("simulacion").hidden=true;document.body.style.overflow=""});
-$("simNuevo").addEventListener("click",()=>{sim={base:{FUE:10,DES:10,CON:10,INT:10,SAB:10,CAR:10},raza:"humano",subraza:"",elegir:[],niveles:[],subclases:{},mejoras:{}};guardarSim();if(simCat)armarSim()});
+$("simNuevo").addEventListener("click",()=>{sim={base:{FUE:10,DES:10,CON:10,INT:10,SAB:10,CAR:10},raza:"humano",subraza:"",elegir:[],niveles:[],subclases:{},mejoras:{},conjuros:{},invocaciones:[]};guardarSim();if(simCat)armarSim()});
 
 $("abrirSim").addEventListener("click",()=>cambiarVista("simulacion","armado"));
 $("cerrarForja").addEventListener("click",()=>{$("forja").hidden=true;document.body.style.overflow=""});
