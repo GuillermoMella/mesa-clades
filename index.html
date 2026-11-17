@@ -340,7 +340,12 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
 #menuApp [aria-current="page"]{border-color:var(--ember);color:var(--fg)}.menu-sub{padding-left:14px;border-left:2px solid var(--line);margin-left:10px}
 #borradorTurno{font-size:.9rem;padding:10px}#partesTurno{padding-left:20px;max-height:25vh;overflow:auto}#partesTurno li{margin:7px 0}#partesTurno button{width:auto;margin-left:8px}
 #forja.hoja-pj,#hoja.hoja-pj{position:static;inset:auto;display:block;overflow:visible;background:transparent;padding:0;z-index:auto;max-height:none}
-#forja .forja{max-height:none}.ancla-subvista{scroll-margin-top:100px}
+#forja .forja,#simulacion .forja{max-height:none}
+.sim-car{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.sim-car label{display:flex;flex-direction:column;font-size:.85rem}.sim-car input{width:100%}
+.sim-fila{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px}.sim-fila label{display:flex;flex-direction:column;font-size:.85rem}
+.sim-nivel{border-top:1px solid var(--line);padding:8px 0}.sim-cab{margin-bottom:4px}.sim-texto{white-space:pre-wrap;font-size:.9rem;padding:4px 0 8px 12px}
+.sim-car-final{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}#simConjuros details{margin:2px 0}
+@media (max-width:600px){.sim-car{grid-template-columns:repeat(3,minmax(0,1fr))}}.ancla-subvista{scroll-margin-top:100px}
 @media(max-width:600px){.wrap{padding:10px;gap:10px}#cabeceraApp>div:first-of-type{display:none}#cabeceraApp button{min-height:44px}#cabeceraApp #listo{min-width:90px}#borradorTurno{margin:0}}
 /* Hoja de juego: conjuros, invocaciones y rasgos con su texto oficial desplegable. */
 .hj-cab{display:flex;flex-wrap:wrap;gap:8px}
@@ -381,7 +386,7 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
   <header id="cabeceraApp">
     <button class="sec" id="abrirMenu" aria-label="Abrir navegación" aria-expanded="false" aria-controls="menuApp">☰ Menú</button>
     <div><div class="eyebrow">Proyecto Clades</div><h1>Mesa de Clades</h1></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button id="listo" style="width:auto;min-height:44px;padding:6px 14px">Listo</button><button class="sec" id="abrirDeclaracion">Escribir al DM</button><button class="sec" id="abrirHoja" hidden>Hoja</button><button class="sec" id="abrirForja">Forja</button><button class="sec" id="abrirAjustes">Conexión</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button id="listo" style="width:auto;min-height:44px;padding:6px 14px">Listo</button><button class="sec" id="abrirDeclaracion">Escribir al DM</button><button class="sec" id="abrirHoja" hidden>Hoja</button><button class="sec" id="abrirForja">Forja</button><button class="sec" id="abrirSim">Simulación</button><button class="sec" id="abrirAjustes">Conexión</button></div>
   </header>
   <details id="borradorTurno" class="panel"><summary id="tituloBorrador">Turno por enviar</summary><ol id="partesTurno"></ol><div id="estadoEnvioGeneral" role="status"></div></details>
 
@@ -433,6 +438,34 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
           <div class="estado" id="fjEstado"></div>
           <div class="fj-fuente">El precio lo recalcula la herramienta del DM al llegar el encargo; si difiere, manda ese. La descripción final la escribe el DM.</div>
         </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="hoja-pj" id="simulacion" hidden role="dialog" aria-modal="true" aria-label="Simulación">
+    <div class="hp-barra"><span class="eyebrow" style="margin-right:auto">Simulación · armar un personaje nivel por nivel</span><button class="sec" id="simNuevo">Empezar de cero</button><button class="sec" id="cerrarSim">Cerrar</button></div>
+    <div class="forja">
+      <div class="estado" id="simCarga"></div>
+      <div id="simCuerpo" hidden>
+        <div id="simArmadoVista">
+          <section class="panel">
+            <div class="eyebrow">Características base</div>
+            <div class="sim-car" id="simCar"></div>
+            <div class="eyebrow" style="margin-top:10px">Raza</div>
+            <div class="sim-fila"><label>Raza<select id="simRaza"></select></label><label id="simSubrazaL">Subraza<select id="simSubraza"></select></label></div>
+            <div class="sim-fila" id="simElegir"></div>
+          </section>
+          <section class="panel">
+            <div class="eyebrow">Subir de nivel</div>
+            <div class="sim-fila"><label>Clase del próximo nivel<select id="simClase"></select></label><button type="button" id="simSubir">Subir un nivel</button><button type="button" class="sec" id="simQuitar">Quitar el último</button></div>
+            <div class="estado" id="simAviso"></div>
+          </section>
+          <section class="panel"><div class="eyebrow">Cómo queda</div><div id="simResumen"></div></section>
+        </div>
+        <section class="panel" id="simNivelesVista"><div class="eyebrow">Nivel por nivel</div><div id="simNiveles"></div></section>
+        <section class="panel" id="simConjurosVista"><div class="eyebrow">Conjuros e invocaciones a su alcance</div>
+          <div class="sim-fila"><label>Buscar<input type="search" id="simBuscar" placeholder="nombre del conjuro o invocación"></label></div>
+          <div id="simConjuros"></div></section>
       </div>
     </div>
   </div>
@@ -1416,13 +1449,14 @@ const VISTAS_APP=[
  {id:"personaje",nombre:"Personaje",subs:[["hoja","Hoja",["hoja"]],["juego","Hoja de juego",["panelJuego"]],["recursos","Recursos",["panelPJ"]],["subida","Subida de nivel",["panelSubida"]]]},
  {id:"equipo",nombre:"Equipo",subs:[["inventario","Inventario",["equipoInventarioVista"]],["cambios","Cambios pendientes",["equipoPendientes"]]]},
  {id:"forja",nombre:"Forja",subs:[["diseno","Objeto y taller",["forjaDisenoVista"]],["propiedades","Propiedades y mejoras",["fjSecPedido","fjSecHerrero","fjSecMagia"]],["encargo","Aspecto y encargo",["forjaEncargoVista"]]]},
+ {id:"simulacion",nombre:"Simulación",subs:[["armado","Armado",["simArmadoVista"]],["niveles","Nivel por nivel",["simNivelesVista"]],["conjuros","Conjuros e invocaciones",["simConjurosVista"]]]},
  {id:"registro",nombre:"Registro",subs:[["registro","Historial de combate",["panelRegistro"]],["tiradas","Tirada solicitada",["panelPedido"]]]},
  {id:"conexion",nombre:"Conexión",subs:[["ajustes","Conexión",["ajustes"]]]}
 ];
 const RAICES_VISTA={
  mesa:["panelMesa"],exploracion:["panelPiso"],
  combate:["panelCombate","panelTurno","panelReaccion","panelDano","salvacionesAutoVista","panelConm"],
- personaje:["hoja","panelJuego","panelPJ","panelSubida"],equipo:["panelEquipo"],forja:["forja"],
+ personaje:["hoja","panelJuego","panelPJ","panelSubida"],equipo:["panelEquipo"],forja:["forja"],simulacion:["simulacion"],
  // La tirada pedida va arriba en todas las páginas, no solo en Registro (GT-ERR-137).
  registro:["panelRegistro"],conexion:["ajustes"]
 };
@@ -1463,6 +1497,7 @@ function cambiarVista(seccion,sub,volverArriba=true){
  if(v.id==="mesa"){const box=$("relato"),bajar=()=>{box.scrollTop=box.scrollHeight};if(box)bajar()}
  if(v.id==="personaje"){$("hoja").hidden=false;if(hojaPJ)pintarHoja();pintarJuego()}
  if(v.id==="forja"){$("forja").hidden=false;if(forjaCat)armarForja();else cargarForja()}
+ if(v.id==="simulacion"){$("simulacion").hidden=false;if(simCat)armarSim();else cargarSim()}
  if(v.id==="conexion")$("ajustes").hidden=false;
  const m=$("seccionesMenu");m.replaceChildren();for(const x of VISTAS_APP){const b=document.createElement("button");b.className="sec";b.textContent=x.nombre;b.setAttribute("aria-current",x.id===v.id?"page":"false");b.onclick=()=>{cambiarVista(x.id,x.subs[0][0]);cerrarMenuApp()};m.appendChild(b);
   if(x.id===v.id){const grupo=document.createElement("div");grupo.className="menu-sub";for(const z of x.subs){const q=document.createElement("button");q.className="sec";q.textContent=z[1];q.setAttribute("aria-current",z[0]===sv[0]?"page":"false");q.onclick=()=>{cambiarVista(x.id,z[0]);cerrarMenuApp()};grupo.appendChild(q)}m.appendChild(grupo)}}
@@ -2542,7 +2577,7 @@ $("tirar").addEventListener("click",async()=>{
 // Al encargar, la herramienta lo recalcula y manda ella. Lo que no está en el menú va como consulta para el DM.
 // <forja-calculo> (tools/test_forja.py corre este bloque con node y lo compara con forja.py)
 // Como round(x, 2) de Python: el decimal más cercano y, en un empate exacto (x·8 entero), el par.
-const r2F=x=>{if(Number.isInteger(x*8)&&!Number.isInteger(x*4)){const c=Math.floor(x*100);return (c%2?c+1:c)/100}return Number(x.toFixed(2))};
+const r2F=x=>{/* DCL-030: al cornado (0,001 po), como round(x, 3) de Python: medio exacto al par, lo demás por su valor binario */if(Number.isInteger(x*16)&&!Number.isInteger(x*1000)){const c=Math.floor(x*1000);return (c%2?c+1:c)/1000}return Number(x.toFixed(3))};
 function normF(s){return String(s??"").normalize("NFKD").replace(/[^\x00-\x7f]/g,"").toLowerCase().trim()}
 function figuraF(cat,nombre){const n=normF(nombre),ps=n.split(/\s+/);
   for(const [pal,fig] of cat.palabras)if(ps.includes(pal)||n.startsWith(pal)||n.includes(" "+pal))return fig;return "amuleto"}
@@ -2557,7 +2592,7 @@ function componenteF(cat,p,base){
     return {rareza:c.rareza,po:c.po,texto:c.texto+(p.texto?": "+p.texto:""),fuente:c.fuente}}
   if(p.tipo==="bono"){const b=(cat.bonos[p.a==="ca"?"ca:"+tipoCaF(cat,base):p.a]||{})[String(p.valor)];if(!b)throw new Error("+"+p.valor+" a "+p.a);return b}
   if(p.tipo==="conjuro"){const c=cat.conjuros.find(x=>x.nombre===p.conjuro);if(!c)throw new Error("conjuro «"+p.conjuro+"»");
-    const m=cat.modelo_conjuros,f=p.frecuencia||"1/dia",u=usosF(f,m.usos),k=m.A*Math.pow(u,m.b),pg=m.pergamino[String(c.nivel)];
+    const m=cat.modelo_conjuros,f=p.frecuencia||"1/dia",u=usosF(f,m.usos),k=Number((m.A*Math.pow(u,m.b)).toFixed(6)),pg=m.pergamino[String(c.nivel)];
     return {rareza:c.rareza,po:r2F(pg*k),texto:`${c.nombre} (nivel ${c.nivel}), ${f}`,fuente:`pergamino de nivel ${c.nivel} (${pg} po) × ${k.toFixed(2)} por ${r2F(u)} usos al día`}}
   if(p.tipo==="como"){const o=cat.como.find(x=>x.nombre===p.objeto);if(!o)throw new Error("objeto «"+p.objeto+"»");
     return {rareza:o.rareza,po:o.po,texto:`${p.texto||"lo que hace"} ${o.nombre}`,fuente:o.fuente}}
@@ -2828,6 +2863,142 @@ $("fjEncargar").onclick=async()=>{
   try{await agregarParteTurno(envioForja.id,envioForja.t,"encargo de forja");envioForja=null;est.className="estado ok";est.textContent="Encargo añadido al turno. Pulsa Listo arriba.";refrescarForja(false)}
   catch(e){$("fjEncargar").disabled=false;est.className="estado bad";est.textContent=`No se pudo añadir (${e.message}). Aprieta de nuevo: se conserva el mismo encargo.`}};
 $("abrirForja").addEventListener("click",()=>cambiarVista("forja","diseno"));
+
+// ---- Simulación: armar un personaje con cualquier característica, raza y clases (catálogo de tools/simulacion.py) ----
+let simCat=null;
+const SIM_CARS=["FUE","DES","CON","INT","SAB","CAR"];
+const SIM_NOMBRE_CAR={fuerza:"FUE",destreza:"DES",constitucion:"CON",inteligencia:"INT",sabiduria:"SAB",carisma:"CAR"};
+let sim=(()=>{try{return JSON.parse(localStorage.getItem("clades_simulacion")||"null")}catch(e){return null}})()||{base:{FUE:10,DES:10,CON:10,INT:10,SAB:10,CAR:10},raza:"humano",subraza:"",elegir:[],niveles:[],subclases:{},mejoras:{}};
+function guardarSim(){try{localStorage.setItem("clades_simulacion",JSON.stringify(sim))}catch(e){}}
+const simMod=v=>Math.floor((v-10)/2), simSigno=n=>(n>=0?"+":"")+n;
+async function cargarSim(){
+  const est=$("simCarga");
+  if(!cfg.repo||!cfg.token){est.textContent="Falta la conexión con la mesa (botón «Conexión»).";return}
+  est.textContent="Cargando las reglas…";
+  try{const r=await fetch(`${API}/repos/${cfg.repo}/contents/simulacion.json`,{headers:cabeceras({"Accept":"application/vnd.github.raw"}),cache:"no-store"});
+    if(r.status===404){est.textContent="El DM aún no publica el catálogo de la simulación.";return}
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    simCat=await r.json();est.textContent="";armarSim()}
+  catch(e){est.textContent=`No se pudo cargar el catálogo (${e.message}).`}
+}
+function simOpciones(sel,lista,actual){sel.replaceChildren(...lista.map(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;o.selected=v===actual;return o}))}
+function armarSim(){
+  $("simCuerpo").hidden=false;
+  const car=$("simCar");car.replaceChildren();
+  for(const c of SIM_CARS){const l=document.createElement("label");l.textContent=c;const i=document.createElement("input");i.type="number";i.min=1;i.max=30;i.value=sim.base[c];
+    i.oninput=()=>{sim.base[c]=Math.max(1,Math.min(30,Number(i.value)||1));guardarSim();pintarSim()};l.appendChild(i);car.appendChild(l)}
+  simOpciones($("simRaza"),Object.keys(simCat.razas).map(k=>[k,k]),sim.raza);
+  $("simRaza").onchange=()=>{sim.raza=$("simRaza").value;sim.subraza="";sim.elegir=[];guardarSim();armarSim()};
+  const rz=simCat.razas[sim.raza]||{},subs=Object.keys(rz.subrazas||{});
+  $("simSubrazaL").hidden=!subs.length;
+  if(subs.length&&!subs.includes(sim.subraza))sim.subraza=subs[0];
+  simOpciones($("simSubraza"),subs.map(k=>[k,k]),sim.subraza);
+  $("simSubraza").onchange=()=>{sim.subraza=$("simSubraza").value;guardarSim();pintarSim()};
+  const el=$("simElegir");el.replaceChildren();
+  if(rz.elegir){const n=rz.elegir.cantidad,val=rz.elegir.valor,ex=rz.elegir.excluye||[];
+    for(let k=0;k<n;k++){const l=document.createElement("label");l.textContent=`+${val} a`;const s=document.createElement("select");
+      simOpciones(s,[["","—"],...SIM_CARS.filter(c=>!ex.includes(c)).map(c=>[c,c])],sim.elegir[k]||"");
+      s.onchange=()=>{sim.elegir[k]=s.value;guardarSim();pintarSim()};l.appendChild(s);el.appendChild(l)}}
+  simOpciones($("simClase"),Object.entries(simCat.clases).map(([k,v])=>[k,v.nombre]),$("simClase").value||"brujo");
+  $("simSubir").onclick=()=>{const c=$("simClase").value,av=$("simAviso");av.textContent="";
+    if(sim.niveles.length>=20){av.textContent="Ya está en nivel 20.";return}
+    const yaTiene=new Set(sim.niveles);if(sim.niveles.length&&!yaTiene.has(c)){
+      const falta=[...simRequisitos(sim.niveles[0]),...simRequisitos(c)].filter(g=>!g.some(([car,v])=>simFinales()[car]>=v));
+      if(falta.length){av.className="estado bad";av.textContent="Multiclase: no cumple "+falta.map(g=>g.map(([car,v])=>`${car} ${v}`).join(" o ")).join(" y ")+" (PHB, cap. 6).";return}}
+    sim.niveles.push(c);guardarSim();pintarSim()};
+  $("simQuitar").onclick=()=>{const c=sim.niveles.pop();if(c&&!sim.niveles.includes(c))delete sim.subclases[c];delete sim.mejoras[sim.niveles.length+1];guardarSim();pintarSim()};
+  $("simBuscar").oninput=()=>pintarSimConjuros();
+  pintarSim();
+}
+function simRequisitos(clase){
+  // «Fuerza 13 y Carisma 13» → [[[FUE,13]],[[CAR,13]]]; «Fuerza 13 o Destreza 13» → [[[FUE,13],[DES,13]]]
+  const t=(simCat.clases[clase]?.multiclase?.requisitos||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  return t.split(/\sy\s|,/).map(p=>[...p.matchAll(/(fuerza|destreza|constitucion|inteligencia|sabiduria|carisma)\s*(\d+)/g)].map(m=>[SIM_NOMBRE_CAR[m[1]],Number(m[2])])).filter(g=>g.length);
+}
+function simFinales(hasta){
+  const f={...sim.base},rz=simCat.razas[sim.raza]||{},sr=(rz.subrazas||{})[sim.subraza]||{};
+  for(const [c,v] of Object.entries(rz.ajustes||{}))f[c]+=v;for(const [c,v] of Object.entries(sr.ajustes||{}))f[c]+=v;
+  if(rz.elegir)for(const c of sim.elegir)if(c)f[c]+=rz.elegir.valor;
+  for(const [n,m] of Object.entries(sim.mejoras)){if(hasta&&Number(n)>hasta)continue;if(m.tipo==="car")for(const c of [m.a,m.b])if(c)f[c]=Math.min(20,f[c]+1)}
+  return f;
+}
+function simConteo(hasta){const n={};sim.niveles.slice(0,hasta).forEach(c=>n[c]=(n[c]||0)+1);return n}
+function simFila(clase,nivel){return (simCat.clases[clase].tabla.find(r=>r.nivel===nivel)||{}).valores||{}}
+function simEspacios(cuenta){
+  const lanzadoras=Object.entries(cuenta).filter(([c])=>!["ninguno","pacto"].includes(simCat.clases[c].tipo_lanzador)||(sim.subclases[c]&&simCat.clases[c].subclases[sim.subclases[c]]?.tercio));
+  if(!lanzadoras.length)return [];
+  if(lanzadoras.length===1){const [c,n]=lanzadoras[0],v=simFila(c,n),e=[];for(let k=1;k<=9;k++)if(v["espacios_nivel_"+k])e.push(v["espacios_nivel_"+k]);
+    if(e.length||simCat.clases[c].tipo_lanzador!=="ninguno")return e}
+  let nl=0;for(const [c,n] of lanzadoras){const t=simCat.clases[c].tipo_lanzador,ter=sim.subclases[c]&&simCat.clases[c].subclases[sim.subclases[c]]?.tercio;
+    nl+=t==="completo"?n:t==="medio"?Math.floor(n/2):t==="medio_arriba"?Math.ceil(n/2):ter?Math.floor(n/3):0}
+  return nl?simCat.espacios_multiclase[nl-1]:[];
+}
+function simNivelMaxConjuro(clase,n){
+  const v=simFila(clase,n);if(clase==="brujo")return v.nivel_espacios||0;
+  let m=0;for(let k=1;k<=9;k++)if(v["espacios_nivel_"+k])m=k;
+  if(!m&&sim.subclases[clase]&&simCat.clases[clase].subclases[sim.subclases[clase]]?.tercio)m=n>=19?4:n>=13?3:n>=7?2:n>=3?1:0;
+  return m;
+}
+function pintarSim(){
+  if(!simCat)return;
+  const total=sim.niveles.length,cuenta=simConteo(total),f=simFinales(),comp=total?Math.ceil(total/4)+1:2;
+  // Elecciones por nivel (subclase y mejoras de característica)
+  let pg=0;const filas=[];const visto={};
+  sim.niveles.forEach((c,i)=>{const k=(visto[c]=(visto[c]||0)+1),cl=simCat.clases[c],con=simMod(simFinales(i+1).CON);
+    pg+=(i===0?cl.dado:Math.floor(cl.dado/2)+1)+con;
+    const ras=cl.rasgos.filter(r=>r.nivel===k&&!/^(Puntos de Golpe|Competencias|Equipo)$/i.test(r.nombre));
+    const sub=sim.subclases[c],rs=sub?(cl.subclases[sub]?.rasgos||[]).filter(r=>r.nivel===k):[];
+    filas.push({i:i+1,c,k,ras,rs,pide_sub:k===cl.nivel_subclase,mejora:(cl.mejoras||[]).includes(k)})});
+  const cont=$("simNiveles");cont.replaceChildren();
+  if(!filas.length)cont.innerHTML='<div class="estado">Elige una clase y aprieta «Subir un nivel».</div>';
+  for(const x of filas){const d=document.createElement("div");d.className="sim-nivel";
+    d.innerHTML=`<div class="sim-cab"><b>Nivel ${x.i}</b> · ${esc(simCat.clases[x.c].nombre)} ${x.k}</div>`;
+    if(x.pide_sub){const l=document.createElement("label");l.textContent="Subclase";const s=document.createElement("select");
+      simOpciones(s,[["","— elegir —"],...Object.entries(simCat.clases[x.c].subclases).map(([n,v])=>[n,`${n} (${v.libro})`])],sim.subclases[x.c]||"");
+      s.onchange=()=>{sim.subclases[x.c]=s.value;guardarSim();pintarSim()};l.appendChild(s);d.appendChild(l)}
+    if(x.mejora){const m=sim.mejoras[x.i]||{tipo:"car",a:"",b:""};const l=document.createElement("div");l.className="sim-fila";
+      const tipo=document.createElement("select");simOpciones(tipo,[["car","Mejora de característica"],["dote","Dote"]],m.tipo);
+      tipo.onchange=()=>{sim.mejoras[x.i]={tipo:tipo.value,a:"",b:"",dote:""};guardarSim();pintarSim()};l.appendChild(tipo);
+      if(m.tipo==="car")for(const q of ["a","b"]){const s=document.createElement("select");simOpciones(s,[["","+1 a…"],...SIM_CARS.map(c=>[c,"+1 "+c])],m[q]||"");
+        s.onchange=()=>{sim.mejoras[x.i]={...m,[q]:s.value};guardarSim();pintarSim()};l.appendChild(s)}
+      else{const t=document.createElement("input");t.placeholder="nombre de la dote";t.value=m.dote||"";t.onchange=()=>{sim.mejoras[x.i]={...m,dote:t.value};guardarSim()};l.appendChild(t)}
+      d.appendChild(l)}
+    for(const r of [...x.ras,...x.rs]){const det=document.createElement("details");det.innerHTML=`<summary>${esc(r.nombre)}</summary><div class="sim-texto">${esc(r.texto)}</div>`;d.appendChild(det)}
+    cont.appendChild(d)}
+  // Resumen
+  const esp=simEspacios(cuenta),pacto=cuenta.brujo?simFila("brujo",cuenta.brujo):null;
+  const tablas=Object.entries(cuenta).map(([c,n])=>{const v=simFila(c,n),cols=(simCat.clases[c].columnas||[]).filter(k=>!/^(competencia|rasgos)$/.test(k)&&!/^espacios_nivel_/.test(k));
+    return `<div><b>${esc(simCat.clases[c].nombre)} ${n}</b>${sim.subclases[c]?" · "+esc(sim.subclases[c]):""}${cols.length?": "+cols.map(k=>`${esc(k.replace(/_/g," "))} ${esc(String(v[k]??"—"))}`).join(" · "):""}</div>`}).join("");
+  const salv=sim.niveles.length?simCat.clases[sim.niveles[0]].salvaciones:[];
+  $("simResumen").innerHTML=`<div class="sim-car-final">${SIM_CARS.map(c=>`<span>${c} <b>${f[c]}</b> (${simSigno(simMod(f[c]))})</span>`).join("")}</div>
+    <div>Nivel ${total} · competencia ${simSigno(comp)} · <b>${pg}</b> PG (promedio) · salvaciones: ${salv.join(", ")||"—"}</div>
+    ${tablas}
+    <div>Espacios de conjuro: ${esp.length?esp.map((n,k)=>`nivel ${k+1}: ${n}`).join(" · "):"—"}</div>
+    ${pacto?`<div>Espacios de pacto: ${pacto.espacios_conjuro} de nivel ${pacto.nivel_espacios} (vuelven con descanso corto)</div>`:""}`;
+  pintarSimConjuros();
+}
+function pintarSimConjuros(){
+  if(!simCat)return;const cuenta=simConteo(sim.niveles.length),q=($("simBuscar").value||"").toLowerCase(),cont=$("simConjuros");
+  const grupos=[];
+  for(const [c,n] of Object.entries(cuenta)){const max=simNivelMaxConjuro(c,n);const lista=simCat.clases[c].lanzador?.lista||c;
+    if(!max&&!simFila(c,n).trucos_conocidos)continue;
+    // Lo que da la subclase: el brujo amplía su lista (por nivel de conjuro); las demás lo tienen siempre (por nivel de clase).
+    const sub=sim.subclases[c]&&simCat.clases[c].subclases[sim.subclases[c]],amp=new Set(),siempre=[];
+    for(const a of sub?.ampliados||[]){if(sub.modo_ampliados==="lista"){if(a.nivel<=max)a.conjuros.forEach(n=>amp.add(n))}else if(a.nivel<=n)siempre.push(...a.conjuros)}
+    const fila=x=>`<details><summary>${esc(x.n)} · nivel ${x.nv}${x.conc?" · concentración":""}${x.rit?" · ritual":""}${amp.has(x.n)?" · lista ampliada":""} <span class="fj-fuente">${esc(x.libro)}</span></summary><div class="sim-texto"><i>${esc(x.t)} · ${esc(x.al)} · ${esc(x.dur)}</i><br>${esc(x.txt)}</div></details>`;
+    const cj=simCat.conjuros.filter(x=>(x.clases.includes(lista)||amp.has(x.n))&&x.nv<=max&&(!q||x.n.toLowerCase().includes(q)));
+    const sp=simCat.conjuros.filter(x=>siempre.includes(x.n)&&(!q||x.n.toLowerCase().includes(q)));
+    if(sp.length)grupos.push(`<details open><summary><b>${esc(sim.subclases[c])}</b>: siempre conocidos o preparados (${sp.length})</summary>${sp.map(fila).join("")}</details>`);
+    grupos.push(`<details open><summary><b>${esc(simCat.clases[c].nombre)}</b>: trucos y conjuros hasta nivel ${max} (${cj.length})</summary>${cj.map(fila).join("")}</details>`)}
+  if(cuenta.brujo){const inv=simCat.invocaciones.filter(x=>!q||x.n.toLowerCase().includes(q));
+    grupos.push(`<details><summary><b>Invocaciones</b> (${simFila("brujo",cuenta.brujo).invocaciones_conocidas||0} conocidas a brujo ${cuenta.brujo})</summary>${inv.map(x=>{const m=/nivel (\d+)/i.exec(x.req),ok=!m||cuenta.brujo>=Number(m[1]);
+      return `<details><summary>${ok?"":"🔒 "}${esc(x.n)}${x.req?` <span class="fj-fuente">${esc(x.req)}</span>`:""}</summary><div class="sim-texto">${esc(x.txt)}</div></details>`}).join("")}</details>`)}
+  cont.innerHTML=grupos.join("")||'<div class="estado">Todavía no tiene clases que lancen conjuros.</div>';
+}
+$("cerrarSim").addEventListener("click",()=>{$("simulacion").hidden=true;document.body.style.overflow=""});
+$("simNuevo").addEventListener("click",()=>{sim={base:{FUE:10,DES:10,CON:10,INT:10,SAB:10,CAR:10},raza:"humano",subraza:"",elegir:[],niveles:[],subclases:{},mejoras:{}};guardarSim();if(simCat)armarSim()});
+
+$("abrirSim").addEventListener("click",()=>cambiarVista("simulacion","armado"));
 $("cerrarForja").addEventListener("click",()=>{$("forja").hidden=true;document.body.style.overflow=""});
 document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("forja").hidden&&!document.querySelector(".hoja-fondo,.desplegable"))$("cerrarForja").click()});
 
