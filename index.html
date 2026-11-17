@@ -344,7 +344,7 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
 .sim-car{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.sim-car label{display:flex;flex-direction:column;font-size:.85rem}.sim-car input{width:100%}
 .sim-fila{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px}.sim-fila label{display:flex;flex-direction:column;font-size:.85rem}
 .sim-nivel{border-top:1px solid var(--line);padding:8px 0}.sim-cab{margin-bottom:4px}.sim-texto{white-space:pre-wrap;font-size:.9rem;padding:4px 0 8px 12px}
-.sim-car-final{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}#simConjuros details{margin:2px 0}.sim-nv{margin:10px 0 2px;font-weight:600;border-bottom:1px solid var(--line)}.sim-cj{display:flex;gap:8px;align-items:flex-start}.sim-cj>input{margin-top:5px;flex:none;width:18px;height:18px}.sim-cj>details{flex:1;min-width:0}.sim-cuenta{font-weight:400}.sim-cuenta.bad{color:var(--bad,#c33)}.sim-check{flex-direction:row;align-items:center;gap:6px}
+.sim-car-final{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}#simConjuros details{margin:2px 0}.sim-nv{margin:10px 0 2px;font-weight:600;border-bottom:1px solid var(--line)}.sim-cj{display:flex;gap:8px;align-items:flex-start}.sim-cj>input{margin-top:5px;flex:none;width:18px;height:18px}.sim-cj>details{flex:1;min-width:0}.sim-cuenta{font-weight:400}.sim-cuenta.bad{color:var(--bad,#c33)}.sim-check{flex-direction:row;align-items:center;gap:6px}.sim-clase{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}.sim-clase>span{flex:1;min-width:0}.sim-clase button{min-width:38px;padding:4px 8px}
 @media (max-width:600px){.sim-car{grid-template-columns:repeat(3,minmax(0,1fr))}}.ancla-subvista{scroll-margin-top:100px}
 @media(max-width:600px){.wrap{padding:10px;gap:10px}#cabeceraApp>div:first-of-type{display:none}#cabeceraApp button{min-height:44px}#cabeceraApp #listo{min-width:90px}#borradorTurno{margin:0}}
 /* Hoja de juego: conjuros, invocaciones y rasgos con su texto oficial desplegable. */
@@ -459,6 +459,7 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
             <div class="eyebrow">Subir de nivel</div>
             <div class="sim-fila"><label>Clase del próximo nivel<select id="simClase"></select></label><button type="button" id="simSubir">Subir un nivel</button><button type="button" class="sec" id="simQuitar">Quitar el último</button></div>
             <div class="estado" id="simAviso"></div>
+            <div id="simClases"></div>
           </section>
           <section class="panel"><div class="eyebrow">Cómo queda</div><div id="simResumen"></div></section>
         </div>
@@ -2906,7 +2907,7 @@ function armarSim(){
     const yaTiene=new Set(sim.niveles);if(sim.niveles.length&&!yaTiene.has(c)){
       const falta=[...simRequisitos(sim.niveles[0]),...simRequisitos(c)].filter(g=>!g.some(([car,v])=>simFinales()[car]>=v));
       if(falta.length){av.className="estado bad";av.textContent="Multiclase: no cumple "+falta.map(g=>g.map(([car,v])=>`${car} ${v}`).join(" o ")).join(" y ")+" (PHB, cap. 6).";return}}
-    sim.niveles.push(c);guardarSim();pintarSim()};
+    simRearmar(yaTiene.has(c)?simBloques().map(([x,m])=>[x,x===c?m+1:m]):[...simBloques(),[c,1]])};
   $("simQuitar").onclick=()=>{const c=sim.niveles.pop();if(c&&!sim.niveles.includes(c)){delete sim.subclases[c];delete sim.conjuros[c];if(c==="brujo")sim.invocaciones=[]}delete sim.mejoras[sim.niveles.length+1];guardarSim();pintarSim()};
   $("simBuscar").oninput=()=>pintarSimConjuros();$("simSoloElegidos").onchange=()=>pintarSimConjuros();
   pintarSim();
@@ -2976,7 +2977,32 @@ function pintarSim(){
     ${tablas}
     <div>Espacios de conjuro: ${esp.length?esp.map((n,k)=>`nivel ${k+1}: ${n}`).join(" · "):"—"}</div>
     ${pacto?`<div>Espacios de pacto: ${pacto.espacios_conjuro} de nivel ${pacto.nivel_espacios} (vuelven con descanso corto)</div>`:""}<div id="simElegidos"></div>`;
+  pintarSimClases();
   pintarSimConjuros();
+}
+// Clases tomadas, en bloques: la de arriba es la primera (da salvaciones y competencias completas). Cada bloque suma o
+// quita niveles sin volver a elegir la clase; las mejoras y dotes elegidas siguen a su nivel de clase al reordenar.
+function simBloques(){const o=[];for(const c of sim.niveles)if(!o.includes(c))o.push(c);return o.map(c=>[c,sim.niveles.filter(x=>x===c).length])}
+function simRearmar(bloques){
+  const clave=[],vis={};sim.niveles.forEach(c=>clave.push(c+":"+(vis[c]=(vis[c]||0)+1)));
+  const viejas={};for(const [n,m] of Object.entries(sim.mejoras)){const k=clave[Number(n)-1];if(k)viejas[k]=m}
+  sim.niveles=bloques.flatMap(([c,n])=>Array(n).fill(c));
+  const v2={};sim.mejoras={};sim.niveles.forEach((c,i)=>{const k=c+":"+(v2[c]=(v2[c]||0)+1);if(viejas[k])sim.mejoras[i+1]=viejas[k]});
+  for(const c of Object.keys(sim.subclases))if(!sim.niveles.includes(c))delete sim.subclases[c];
+  for(const c of Object.keys(sim.conjuros))if(!sim.niveles.includes(c))delete sim.conjuros[c];
+  if(!sim.niveles.includes("brujo"))sim.invocaciones=[];
+  guardarSim();pintarSim();
+}
+function pintarSimClases(){
+  const cont=$("simClases"),b=simBloques();cont.replaceChildren();
+  b.forEach(([c,n],i)=>{const d=document.createElement("div");d.className="sim-clase";
+    const t=document.createElement("span");t.innerHTML=`${i===0?"<b>1.ª</b> ":""}${esc(simCat.clases[c].nombre)} <b>${n}</b>${sim.subclases[c]?" · "+esc(sim.subclases[c]):""}`;d.appendChild(t);
+    const bt=(txt,tit,des,fn)=>{const x=document.createElement("button");x.type="button";x.className="sec";x.textContent=txt;x.title=tit;x.setAttribute("aria-label",tit);x.disabled=des;x.onclick=fn;d.appendChild(x)};
+    bt("↑","Subir de orden",i===0,()=>{const nb=b.slice();[nb[i-1],nb[i]]=[nb[i],nb[i-1]];simRearmar(nb)});
+    bt("↓","Bajar de orden",i===b.length-1,()=>{const nb=b.slice();[nb[i],nb[i+1]]=[nb[i+1],nb[i]];simRearmar(nb)});
+    bt("−","Quitar un nivel de "+simCat.clases[c].nombre,false,()=>{simRearmar(b.map(([x,m])=>[x,x===c?m-1:m]).filter(([,m])=>m>0))});
+    bt("+","Sumar un nivel de "+simCat.clases[c].nombre,sim.niveles.length>=20,()=>{simRearmar(b.map(([x,m])=>[x,x===c?m+1:m]))});
+    cont.appendChild(d)});
 }
 // Topes de cada clase (PHB, XGE, TCE): trucos y conjuros conocidos de su tabla; los que preparan, modificador + nivel
 // (o la mitad); el mago elige los de su libro (6 + 2 por nivel). Los tercios de mago (Caballero y Embaucador arcanos) usan
