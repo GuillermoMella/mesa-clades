@@ -344,7 +344,7 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
 .sim-car{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.sim-car label{display:flex;flex-direction:column;font-size:.85rem}.sim-car input{width:100%}
 .sim-fila{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:6px}.sim-fila label{display:flex;flex-direction:column;font-size:.85rem}
 .sim-nivel{border-top:1px solid var(--line);padding:8px 0}.sim-cab{margin-bottom:4px}.sim-texto{white-space:pre-wrap;font-size:.9rem;padding:4px 0 8px 12px}
-.sim-car-final{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}#simConjuros details{margin:2px 0}
+.sim-car-final{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}#simConjuros details{margin:2px 0}.sim-nv{margin:10px 0 2px;font-weight:600;border-bottom:1px solid var(--line)}
 @media (max-width:600px){.sim-car{grid-template-columns:repeat(3,minmax(0,1fr))}}.ancla-subvista{scroll-margin-top:100px}
 @media(max-width:600px){.wrap{padding:10px;gap:10px}#cabeceraApp>div:first-of-type{display:none}#cabeceraApp button{min-height:44px}#cabeceraApp #listo{min-width:90px}#borradorTurno{margin:0}}
 /* Hoja de juego: conjuros, invocaciones y rasgos con su texto oficial desplegable. */
@@ -2988,8 +2988,11 @@ function pintarSimConjuros(){
     const fila=x=>`<details><summary>${esc(x.n)} · nivel ${x.nv}${x.conc?" · concentración":""}${x.rit?" · ritual":""}${amp.has(x.n)?" · lista ampliada":""} <span class="fj-fuente">${esc(x.libro)}</span></summary><div class="sim-texto"><i>${esc(x.t)} · ${esc(x.al)} · ${esc(x.dur)}</i><br>${esc(x.txt)}</div></details>`;
     const cj=simCat.conjuros.filter(x=>(x.clases.includes(lista)||amp.has(x.n))&&x.nv<=max&&(!q||x.n.toLowerCase().includes(q)));
     const sp=simCat.conjuros.filter(x=>siempre.includes(x.n)&&(!q||x.n.toLowerCase().includes(q)));
-    if(sp.length)grupos.push(`<details open><summary><b>${esc(sim.subclases[c])}</b>: siempre conocidos o preparados (${sp.length})</summary>${sp.map(fila).join("")}</details>`);
-    grupos.push(`<details open><summary><b>${esc(simCat.clases[c].nombre)}</b>: trucos y conjuros hasta nivel ${max} (${cj.length})</summary>${cj.map(fila).join("")}</details>`)}
+    // Separados por nivel (trucos primero) y en orden alfabético; el libro queda como etiqueta.
+    const porNivel=lista=>{const g={};for(const x of lista)(g[x.nv]=g[x.nv]||[]).push(x);
+      return Object.keys(g).map(Number).sort((a,b)=>a-b).map(nv=>`<div class="sim-nv">${nv?"Nivel "+nv:"Trucos"} (${g[nv].length})</div>${g[nv].sort((a,b)=>a.n.localeCompare(b.n,"es")).map(fila).join("")}`).join("")};
+    if(sp.length)grupos.push(`<details open><summary><b>${esc(sim.subclases[c])}</b>: siempre conocidos o preparados (${sp.length})</summary>${porNivel(sp)}</details>`);
+    grupos.push(`<details open><summary><b>${esc(simCat.clases[c].nombre)}</b>: trucos y conjuros hasta nivel ${max} (${cj.length})</summary>${porNivel(cj)}</details>`)}
   if(cuenta.brujo){const inv=simCat.invocaciones.filter(x=>!q||x.n.toLowerCase().includes(q));
     grupos.push(`<details><summary><b>Invocaciones</b> (${simFila("brujo",cuenta.brujo).invocaciones_conocidas||0} conocidas a brujo ${cuenta.brujo})</summary>${inv.map(x=>{const m=/nivel (\d+)/i.exec(x.req),ok=!m||cuenta.brujo>=Number(m[1]);
       return `<details><summary>${ok?"":"🔒 "}${esc(x.n)}${x.req?` <span class="fj-fuente">${esc(x.req)}</span>`:""}</summary><div class="sim-texto">${esc(x.txt)}</div></details>`}).join("")}</details>`)}
