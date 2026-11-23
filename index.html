@@ -53,6 +53,7 @@ button,select,input{min-height:44px;font-size:16px}
 input[type=checkbox],input[type=radio]{min-height:0;width:22px;height:22px;accent-color:var(--ember)}
 .opciones label{min-height:40px}
 .acc,button.sec{min-height:44px}
+#partySel{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}#partySel button.sec{flex:1 1 0}#partySel button.sec.on{border-color:var(--ember);color:var(--fg);background:var(--sel);font-weight:700}
 /* Orden de iniciativa compacto, desplazable de lado. */
 .orden{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
 .orden span{flex:0 0 auto;font-size:.85rem;border:1px solid var(--line);border-radius:999px;padding:4px 10px;white-space:nowrap}
@@ -650,6 +651,12 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
     <div class="chips" id="efectos"></div>
   </section>
 
+  <section class="panel pane" id="panelParty" data-pane="party" hidden>
+    <div class="eyebrow">Hojas de la party</div>
+    <div class="chips" id="partySel" role="tablist" aria-label="Compañeros"></div>
+    <div class="hp" id="papelParty"><p class="hp-texto">Todavía no llegaron las hojas de la party.</p></div>
+  </section>
+
   <section class="panel pane" id="panelRegistro" data-pane="registro" hidden>
     <div class="eyebrow">Lo que pasó</div>
     <ol class="registro" id="registro"></ol>
@@ -717,6 +724,7 @@ function pintar(e){
   pintarEquipo(e.equipo||null);
   pintarDerrotados(e.derrotados||null);
   hojaPJ=e.hoja||null; $("abrirHoja").hidden=!hojaPJ; if(!$("hoja").hidden)pintarHoja();
+  partyHojas=e.party||[]; if(pestana==="party")pintarParty();
   pintarJuego();
   pintarConm();
 }
@@ -803,8 +811,20 @@ $("abrirHoja").addEventListener("click",()=>cambiarVista("personaje","hoja"));
 $("cerrarHoja").addEventListener("click",()=>{$("hoja").hidden=true;document.body.style.overflow=""});
 document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("hoja").hidden&&!document.querySelector(".hoja-fondo,.desplegable"))$("cerrarHoja").click()});
 const pips=(q,m,cls="")=>`<span class="hp-pips ${cls}">${Array.from({length:m},(_,i)=>`<i class="${i<q?"lleno":""}"></i>`).join("")}</span>`;
-function pintarHoja(){
-  const h=hojaPJ, P=$("papelHoja"); estiloHoja(); if(!h){P.innerHTML='<p class="hp-texto">Todavía no llegó la hoja.</p>';return}
+// ---- Party: las hojas mecánicas de los compañeros, con el mismo papel que la del PJ ----
+let partyHojas=[], partyElegida=null;
+try{partyElegida=localStorage.getItem("clades_mesa_party")}catch(_){}
+function pintarParty(){
+  const sel=$("partySel"),P=$("papelParty");if(!sel||!P)return;
+  if(!partyHojas.length){sel.innerHTML="";P.className="hp";P.innerHTML='<p class="hp-texto">Todavía no llegaron las hojas de la party.</p>';return}
+  if(!partyHojas.some(h=>h.id===partyElegida))partyElegida=partyHojas[0].id;
+  sel.innerHTML="";for(const h of partyHojas){const b=document.createElement("button");b.className="sec"+(h.id===partyElegida?" on":"");b.setAttribute("role","tab");b.setAttribute("aria-selected",h.id===partyElegida?"true":"false");
+    b.textContent=String(h.nombre||h.id).split(" ")[0];b.onclick=()=>{partyElegida=h.id;try{localStorage.setItem("clades_mesa_party",h.id)}catch(_){};pintarParty()};sel.appendChild(b)}
+  pintarHoja(partyHojas.find(h=>h.id===partyElegida),P);
+}
+function pintarHoja(h=hojaPJ,P=$("papelHoja")){
+  estiloHoja(); if(P.id!=="papelHoja"){const base=$("papelHoja");P.className=base.className;P.style.cssText=base.style.cssText}
+  if(!h){P.innerHTML='<p class="hp-texto">Todavía no llegó la hoja.</p>';return}
   const clases=h.clases.map(c=>`${c.clase} ${c.nivel}`).join(" · ")+(h.subclases.length?` <span>(${h.subclases.map(esc).join(", ")})</span>`:"");
   const px=h.px_siguiente?Math.min(100,100*h.px/h.px_siguiente):100;
   const cars=Object.entries(h.caracteristicas).map(([k,c])=>`<div class="hp-car"><small>${esc(c.nombre)}</small><span class="mano">${sg(c.mod)}</span><span class="val">${c.valor}</span></div>`).join("");
@@ -1448,6 +1468,7 @@ const VISTAS_APP=[
  {id:"exploracion",nombre:"Exploración",subs:[["mapa","Mapa y lugares",["mapaExploracionVista"]],["viaje","Traslado",["viajeVista"]],["buscar","Investigación",["buscarVista"]],["descanso","Descanso",["descansoVista"]],["carga","Carga y provisiones",["cargaPiso","provPiso"]]]},
  {id:"combate",nombre:"Combate",subs:[["mapa","Mapa",["mapaCombateVista"]],["combatientes","Combatientes",["combatientes"]],["acciones","Mis acciones",["panelTurno"]],["reaccion","Reacciones",["panelReaccion"]],["resultados","Ataques y resultados",["panelDano","salvacionesAutoVista"]],["interruptores","Interruptores",["panelConm"]]]},
  {id:"personaje",nombre:"Personaje",subs:[["hoja","Hoja",["hoja"]],["juego","Hoja de juego",["panelJuego"]],["recursos","Recursos",["panelPJ"]],["subida","Subida de nivel",["panelSubida"]]]},
+ {id:"party",nombre:"Party",subs:[["hojas","Hojas",["panelParty"]]]},
  {id:"equipo",nombre:"Equipo",subs:[["inventario","Inventario",["equipoInventarioVista"]],["cambios","Cambios pendientes",["equipoPendientes"]]]},
  {id:"forja",nombre:"Forja",subs:[["diseno","Objeto y taller",["forjaDisenoVista"]],["propiedades","Propiedades y mejoras",["fjSecPedido","fjSecHerrero","fjSecMagia"]],["encargo","Aspecto y encargo",["forjaEncargoVista"]]]},
  {id:"simulacion",nombre:"Simulación",subs:[["armado","Armado",["simArmadoVista"]],["niveles","Nivel por nivel",["simNivelesVista"]],["conjuros","Conjuros e invocaciones",["simConjurosVista"]]]},
@@ -1457,7 +1478,7 @@ const VISTAS_APP=[
 const RAICES_VISTA={
  mesa:["panelMesa"],exploracion:["panelPiso"],
  combate:["panelCombate","panelTurno","panelReaccion","panelDano","salvacionesAutoVista","panelConm"],
- personaje:["hoja","panelJuego","panelPJ","panelSubida"],equipo:["panelEquipo"],forja:["forja"],simulacion:["simulacion"],
+ personaje:["hoja","panelJuego","panelPJ","panelSubida"],party:["panelParty"],equipo:["panelEquipo"],forja:["forja"],simulacion:["simulacion"],
  // La tirada pedida va arriba en todas las páginas, no solo en Registro (GT-ERR-137).
  registro:["panelRegistro"],conexion:["ajustes"]
 };
@@ -1497,6 +1518,7 @@ function cambiarVista(seccion,sub,volverArriba=true){
  // Al volver a Mesa, la narración abre en el último mensaje: oculta pierde su desplazamiento (GT-ERR-139).
  if(v.id==="mesa"){const box=$("relato"),bajar=()=>{box.scrollTop=box.scrollHeight};if(box)bajar()}
  if(v.id==="personaje"){$("hoja").hidden=false;if(hojaPJ)pintarHoja();pintarJuego()}
+ if(v.id==="party"){$("panelParty").hidden=false;pintarParty()}
  if(v.id==="forja"){$("forja").hidden=false;if(forjaCat)armarForja();else cargarForja()}
  if(v.id==="simulacion"){$("simulacion").hidden=false;if(simCat)armarSim();else cargarSim()}
  if(v.id==="conexion")$("ajustes").hidden=false;
