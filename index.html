@@ -216,6 +216,7 @@ select.oculto{display:none}
 .hp-tabla th{font-weight:700;font-size:.72rem;letter-spacing:.1em;color:var(--tenue);text-align:left;border-bottom:1px solid var(--linea)}
 .hp-tabla td{border-bottom:1px dotted rgba(120,100,70,.35);padding:3px 4px 3px 0;vertical-align:top}
 .hp-tabla td.mano{font-size:1.2rem;white-space:nowrap}
+.hp-libro{opacity:.6}.hp-etq.hp-grupo{letter-spacing:0;white-space:nowrap;font-variant:normal;text-transform:none}
 .hp-etq{display:inline-block;font-size:.66rem;letter-spacing:.06em;border:1px solid var(--acento);color:var(--acento);border-radius:3px;padding:0 3px;margin-left:3px;vertical-align:1px}
 .hp-rasgo{border-bottom:1px dotted rgba(120,100,70,.35);padding:4px 0}
 .hp-rasgo:last-child{border-bottom:0}
@@ -655,6 +656,13 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
     <div class="eyebrow">Hojas de la party</div>
     <div class="chips" id="partySel" role="tablist" aria-label="Compañeros"></div>
     <div class="hp" id="papelParty"><p class="hp-texto">Todavía no llegaron las hojas de la party.</p></div>
+    <div id="juegoParty" hidden>
+      <div class="eyebrow" style="margin-top:12px">Hoja de juego</div>
+      <div id="pjCab" class="hj-cab"></div>
+      <div class="hj-filtros" id="pjFiltros"></div>
+      <input id="pjBuscar" type="search" placeholder="Buscar conjuro o rasgo…" autocomplete="off">
+      <div id="pjCuerpo"></div>
+    </div>
   </section>
 
   <section class="panel pane" id="panelRegistro" data-pane="registro" hidden>
@@ -729,38 +737,43 @@ function pintar(e){
   pintarConm();
 }
 // ---- Hoja de juego: conjuros, invocaciones y rasgos con el texto oficial completo, desplegables y filtrables ----
-let hjFiltro="todo",hjAbiertos=new Set(),hjFirma=null;
+const LIBRO="En el libro, sin preparar";
+const GRUPO_CORTO={"Preparados":"preparado","Conocidos":"conocido","Adicional, no cuenta como conocido":"siempre preparado",[LIBRO]:"en el libro"};
+const JUEGO_PJ={filtro:"todo",abiertos:new Set(),firma:null,panel:()=>$("panelJuego"),hoja:()=>hojaPJ,cab:()=>$("hjCab"),filtros:()=>$("hjFiltros"),buscar:()=>$("hjBuscar"),cuerpo:()=>$("hjCuerpo")};
+const JUEGO_PARTY={filtro:"todo",abiertos:new Set(),firma:null,panel:()=>$("juegoParty"),hoja:()=>partyHojas.find(h=>h.id===partyElegida)||null,cab:()=>$("pjCab"),filtros:()=>$("pjFiltros"),buscar:()=>$("pjBuscar"),cuerpo:()=>$("pjCuerpo")};
+function pintarJuego(){pintarJuegoEn(JUEGO_PJ)}
 const HJ_FILTROS=[["todo","Todo"],["trucos","Trucos"],["n1","Nivel 1+"],["conc","Concentración"],["ritual","Ritual"],["invoc","Invocaciones"],["rasgos","Rasgos"]];
-function pintarJuego(){
-  const p=$("panelJuego");if(!p)return;const h=hojaPJ;p.hidden=!h;if(!h)return;
-  const sinTilde=x=>String(x||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase(),busca=sinTilde($("hjBuscar").value).trim(),firma=JSON.stringify([h.conjuros,h.invocaciones,h.rasgos,hjFiltro,busca]);
-  if(firma===hjFirma)return;hjFirma=firma;
+function pintarJuegoEn(x){
+  const p=x.panel();if(!p)return;const h=x.hoja();p.hidden=!h;if(!h)return;
+  const sinTilde=x=>String(x||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase(),busca=sinTilde(x.buscar().value).trim(),firma=JSON.stringify([h.conjuros,h.invocaciones,h.rasgos,x.filtro,busca]);
+  if(firma===x.firma)return;x.firma=firma;
   const c=h.conjuros||{},pips=(q,m)=>"●".repeat(Math.max(0,q))+"○".repeat(Math.max(0,m-q));
-  $("hjCab").innerHTML=[c.cd!=null?`<div class="hj-dato"><b>${c.cd}</b><span>CD de salvación</span></div>`:"",c.ataque!=null?`<div class="hj-dato"><b>${c.ataque>=0?"+":""}${c.ataque}</b><span>Ataque de conjuro</span></div>`:"",
+  x.cab().innerHTML=[c.cd!=null?`<div class="hj-dato"><b>${c.cd}</b><span>CD de salvación</span></div>`:"",c.ataque!=null?`<div class="hj-dato"><b>${c.ataque>=0?"+":""}${c.ataque}</b><span>Ataque de conjuro</span></div>`:"",
     c.caracteristica?`<div class="hj-dato"><b>${esc(c.caracteristica)}</b><span>Característica</span></div>`:"",
     ...(c.espacios||[]).map(e=>`<div class="hj-dato"><b class="hj-pips">${pips(e.quedan,e.max)}</b><span>${esc(e.nombre)} · ${e.quedan}/${e.max}${e.recupera?" · "+esc(e.recupera):""}</span></div>`)].join("");
-  $("hjFiltros").innerHTML="";for(const[k,t]of HJ_FILTROS){const b=document.createElement("button");b.textContent=t;b.className=k===hjFiltro?"on":"";b.onclick=()=>{hjFiltro=k;hjFirma=null;pintarJuego()};$("hjFiltros").appendChild(b)}
+  x.filtros().innerHTML="";for(const[k,t]of HJ_FILTROS){const b=document.createElement("button");b.textContent=t;b.className=k===x.filtro?"on":"";b.onclick=()=>{x.filtro=k;x.firma=null;pintarJuegoEn(x)};x.filtros().appendChild(b)}
   const coincide=(...xs)=>!busca||xs.some(x=>sinTilde(x).includes(busca));
   const stat=(t,v)=>v?`<div><span>${t}</span>${esc(v)}</div>`:"";
-  const item=(id,nom,tags,sub,det)=>`<details class="hj-item" data-id="${esc(id)}"${hjAbiertos.has(id)?" open":""}><summary><span class="hj-nom">${esc(nom)}</span><span class="hj-tags">${tags}</span>${sub?`<span class="hj-sub">${sub}</span>`:""}</summary><div class="hj-det">${det}</div></details>`;
+  const item=(id,nom,tags,sub,det)=>`<details class="hj-item" data-id="${esc(id)}"${x.abiertos.has(id)?" open":""}><summary><span class="hj-nom">${esc(nom)}</span><span class="hj-tags">${tags}</span>${sub?`<span class="hj-sub">${sub}</span>`:""}</summary><div class="hj-det">${det}</div></details>`;
   const grupos=[];
-  const conj=(c.lista||[]).filter(s=>{if(hjFiltro==="invoc"||hjFiltro==="rasgos")return false;if(hjFiltro==="trucos"&&s.nivel!==0)return false;if(hjFiltro==="n1"&&!(s.nivel>=1))return false;if(hjFiltro==="conc"&&!s.concentracion)return false;if(hjFiltro==="ritual"&&!s.ritual)return false;return coincide(s.nombre,s.texto,s.escuela)});
+  const conj=(c.lista||[]).filter(s=>{if(x.filtro==="invoc"||x.filtro==="rasgos")return false;if(x.filtro==="trucos"&&s.nivel!==0)return false;if(x.filtro==="n1"&&!(s.nivel>=1))return false;if(x.filtro==="conc"&&!s.concentracion)return false;if(x.filtro==="ritual"&&!s.ritual)return false;return coincide(s.nombre,s.texto,s.escuela)});
   const porNivel={};for(const s of conj)(porNivel[s.nivel??"?"]??=[]).push(s);
   for(const n of Object.keys(porNivel).sort((a,b)=>(+a)-(+b))){
     grupos.push(`<div class="hj-grupo"><div class="eyebrow">${n==="0"?"Trucos":"Conjuros de nivel "+esc(n)}</div><div class="hj-lista">`+porNivel[n].map(s=>item("c:"+s.nombre,s.nombre,
-      (s.concentracion?'<span class="chip on">C</span>':"")+(s.ritual?'<span class="chip on">R</span>':"")+`<span class="chip">${esc(s.clase)}</span>`,
+      (s.concentracion?'<span class="chip on">C</span>':"")+(s.ritual?'<span class="chip on">R</span>':"")+(GRUPO_CORTO[s.grupo]?`<span class="chip${s.grupo===LIBRO?"":" on"}">${GRUPO_CORTO[s.grupo]}</span>`:"")+`<span class="chip">${esc(s.clase)}</span>`,
       esc([s.escuela,s.tiempo,s.alcance,s.duracion].filter(Boolean).join(" · ")),
       `<div class="hj-stats">${stat("Tiempo",s.tiempo)}${stat("Alcance",s.alcance)}${stat("Componentes",s.componentes_completos||s.componentes)}${stat("Duración",s.duracion)}${stat("Escuela",s.escuela)}${stat("Lista",s.clase+" · "+s.grupo)}</div>`+
       `<p class="hj-texto">${esc(s.texto||"Sin texto en el catálogo.")}</p>`+(s.superiores?`<p class="hj-texto"><b>A niveles superiores.</b> ${esc(s.superiores)}</p>`:"")+(s.mejora_truco&&!(s.texto||"").includes(s.mejora_truco)?`<p class="hj-texto"><b>Mejora del truco.</b> ${esc(s.mejora_truco)}</p>`:"")+
       (s.fuente?`<div class="hj-fuente">${esc(s.fuente)}</div>`:""))).join("")+`</div></div>`)}
-  if(["todo","invoc"].includes(hjFiltro)){const iv=(h.invocaciones||[]).filter(x=>coincide(x.nombre,x.texto));if(iv.length)grupos.push(`<div class="hj-grupo"><div class="eyebrow">Invocaciones sobrenaturales</div><div class="hj-lista">`+iv.map(x=>item("i:"+x.nombre,x.nombre,"",x.requisitos?"Requisito: "+esc(x.requisitos):"",`<p class="hj-texto">${esc(x.texto||"Sin texto en el catálogo.")}</p>${x.fuente?`<div class="hj-fuente">${esc(x.fuente)}</div>`:""}`)).join("")+`</div></div>`)}
-  if(["todo","rasgos"].includes(hjFiltro)){const rs=(h.rasgos||[]).filter(x=>coincide(x.nombre,x.texto,x.texto_oficial));if(rs.length)grupos.push(`<div class="hj-grupo"><div class="eyebrow">Rasgos</div><div class="hj-lista">`+rs.map(x=>item("r:"+x.nombre,x.nombre,
+  if(["todo","invoc"].includes(x.filtro)){const iv=(h.invocaciones||[]).filter(x=>coincide(x.nombre,x.texto));if(iv.length)grupos.push(`<div class="hj-grupo"><div class="eyebrow">Invocaciones sobrenaturales</div><div class="hj-lista">`+iv.map(x=>item("i:"+x.nombre,x.nombre,"",x.requisitos?"Requisito: "+esc(x.requisitos):"",`<p class="hj-texto">${esc(x.texto||"Sin texto en el catálogo.")}</p>${x.fuente?`<div class="hj-fuente">${esc(x.fuente)}</div>`:""}`)).join("")+`</div></div>`)}
+  if(["todo","rasgos"].includes(x.filtro)){const rs=(h.rasgos||[]).filter(x=>coincide(x.nombre,x.texto,x.texto_oficial));if(rs.length)grupos.push(`<div class="hj-grupo"><div class="eyebrow">Rasgos</div><div class="hj-lista">`+rs.map(x=>item("r:"+x.nombre,x.nombre,
       (x.usos?`<span class="chip on">${x.usos.quedan??"?"}/${x.usos.max}${x.usos.unidad?" "+esc(x.usos.unidad):""}</span>`:"")+`<span class="chip">${esc(x.origen)}</span>`,esc(x.texto||""),
       (x.texto_oficial?`<p class="hj-texto">${esc(x.texto_oficial)}</p>`:`<p class="hj-texto">${esc(x.texto||"")}</p>`)+(x.usos?.recupera?`<div class="hj-fuente">Se recupera: ${esc(x.usos.recupera)}</div>`:"")+(x.fuente?`<div class="hj-fuente">${esc(x.fuente)}</div>`:""))).join("")+`</div></div>`)}
-  $("hjCuerpo").innerHTML=grupos.join("")||'<p class="hj-fuente">Nada coincide con la búsqueda.</p>';
-  for(const d of $("hjCuerpo").querySelectorAll("details"))d.addEventListener("toggle",()=>{d.open?hjAbiertos.add(d.dataset.id):hjAbiertos.delete(d.dataset.id)});
+  x.cuerpo().innerHTML=grupos.join("")||'<p class="hj-fuente">Nada coincide con la búsqueda.</p>';
+  for(const d of x.cuerpo().querySelectorAll("details"))d.addEventListener("toggle",()=>{d.open?x.abiertos.add(d.dataset.id):x.abiertos.delete(d.dataset.id)});
 }
-$("hjBuscar").addEventListener("input",()=>{hjFirma=null;pintarJuego()});
+$("hjBuscar").addEventListener("input",()=>{JUEGO_PJ.firma=null;pintarJuego()});
+$("pjBuscar").addEventListener("input",()=>{JUEGO_PARTY.firma=null;pintarJuegoEn(JUEGO_PARTY)});
 
 
 // ---- Enemigos derrotados por cada uno (tools/enemigos_derrotados.py): lo que conoce por haberlos visto caer ----
@@ -819,8 +832,9 @@ function pintarParty(){
   if(!partyHojas.length){sel.innerHTML="";P.className="hp";P.innerHTML='<p class="hp-texto">Todavía no llegaron las hojas de la party.</p>';return}
   if(!partyHojas.some(h=>h.id===partyElegida))partyElegida=partyHojas[0].id;
   sel.innerHTML="";for(const h of partyHojas){const b=document.createElement("button");b.className="sec"+(h.id===partyElegida?" on":"");b.setAttribute("role","tab");b.setAttribute("aria-selected",h.id===partyElegida?"true":"false");
-    b.textContent=String(h.nombre||h.id).split(" ")[0];b.onclick=()=>{partyElegida=h.id;try{localStorage.setItem("clades_mesa_party",h.id)}catch(_){};pintarParty()};sel.appendChild(b)}
+    b.textContent=String(h.nombre||h.id).split(" ")[0];b.onclick=()=>{partyElegida=h.id;JUEGO_PARTY.abiertos.clear();try{localStorage.setItem("clades_mesa_party",h.id)}catch(_){};pintarParty()};sel.appendChild(b)}
   pintarHoja(partyHojas.find(h=>h.id===partyElegida),P);
+  JUEGO_PARTY.firma=null;pintarJuegoEn(JUEGO_PARTY);
 }
 function pintarHoja(h=hojaPJ,P=$("papelHoja")){
   estiloHoja(); if(P.id!=="papelHoja"){const base=$("papelHoja");P.className=base.className;P.style.cssText=base.style.cssText}
@@ -835,7 +849,7 @@ function pintarHoja(h=hojaPJ,P=$("papelHoja")){
   const ata=h.ataques.map(a=>`<tr><td>${esc(a.nombre)}${a.notas?`<div class="hp-sub" style="font-size:.78rem">${esc(a.notas.replace(/^; /,""))}</div>`:""}</td><td class="mano">${sg(a.bono)}</td><td class="mano">${esc(a.dano)}</td><td class="mano">${a.alcance?a.alcance+" p":"—"}</td></tr>`).join("");
   const cj=h.conjuros, esp=cj.espacios.map(e=>`<div class="hp-fila">${esc(e.nombre)} ${pips(e.quedan,e.max)}<em>${esc(e.recupera||"")}</em></div>`).join("");
   const niveles={};cj.lista.forEach(s=>{const k=s.nivel===0?"Trucos":s.nivel?`Nivel ${s.nivel}`:"Sin nivel";(niveles[k]=niveles[k]||[]).push(s)});
-  const conj=Object.keys(niveles).sort((a,b)=>(a==="Trucos"?-1:b==="Trucos"?1:a.localeCompare(b,"es",{numeric:true}))).map(k=>`<div class="hp-tit" style="font-size:.72rem;margin-top:6px">${esc(k)}</div>`+niveles[k].map(s=>`<div class="hp-fila"><span>${esc(s.nombre)}${s.concentracion?'<span class="hp-etq" title="concentración">C</span>':""}${s.ritual?'<span class="hp-etq" title="ritual">R</span>':""}</span><em>${esc([s.escuela,s.tiempo,s.alcance,s.componentes].filter(Boolean).join(" · "))}</em></div>`).join("")).join("");
+  const conj=Object.keys(niveles).sort((a,b)=>(a==="Trucos"?-1:b==="Trucos"?1:a.localeCompare(b,"es",{numeric:true}))).map(k=>`<div class="hp-tit" style="font-size:.72rem;margin-top:6px">${esc(k)}</div>`+niveles[k].sort((a,b)=>(a.grupo===LIBRO)-(b.grupo===LIBRO)).map(s=>`<div class="hp-fila${s.grupo===LIBRO?" hp-libro":""}"><span>${esc(s.nombre)}${s.nivel!==0&&GRUPO_CORTO[s.grupo]&&s.grupo!=="Conocidos"?`<span class="hp-etq hp-grupo" title="${esc(s.grupo)}">${GRUPO_CORTO[s.grupo]}</span>`:""}${s.concentracion?'<span class="hp-etq" title="concentración">C</span>':""}${s.ritual?'<span class="hp-etq" title="ritual">R</span>':""}</span><em>${esc([s.escuela,s.tiempo,s.alcance,s.componentes].filter(Boolean).join(" · "))}</em></div>`).join("")).join("");
   const ras=h.rasgos.map(r=>`<div class="hp-rasgo"><b>${esc(r.nombre)}</b><small>${esc(r.origen)}</small>${r.usos?` <span style="float:right">${r.usos.unidad?`<span class="mano">${r.usos.quedan}/${r.usos.max} ${esc(r.usos.unidad)}</span>`:pips(r.usos.quedan,r.usos.max,"cuad")}</span>`:""}<p>${esc(r.texto)}</p></div>`).join("");
   const comp=Object.entries(h.competencias).filter(([,v])=>v.length).map(([k,v])=>`<div class="hp-fila"><b style="min-width:6.5em">${esc(k)}</b><span class="mano" style="text-align:left;font-size:1.1rem">${esc(v.join(", "))}</span></div>`).join("");
   P.innerHTML=`<div class="hp-cab"><div><div class="hp-nombre">${esc(h.nombre)}</div>
