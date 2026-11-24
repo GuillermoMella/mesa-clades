@@ -249,6 +249,7 @@ select.oculto{display:none}
 .anotado-piso{fill:none;stroke:#e0a458;stroke-width:2;stroke-dasharray:3 2;pointer-events:none}
 .pos-piso{fill:var(--acento,#8b7cf6);stroke:#fff;stroke-width:2;pointer-events:none}
 .lugares-piso-lista{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.lugares-piso-lista button{width:auto;min-height:40px;text-align:left;white-space:normal;padding:7px 10px}
+.local-piso{margin:8px 0 12px}#mapaLocal{border:1px solid var(--line);border-radius:10px;background:#05070a;overflow:auto;max-height:70vh}#mapaLocal svg{display:block}.lc{stroke:#0b0e13;stroke-width:.5}.lsim{fill:#c9d4e3;font-size:10px;text-anchor:middle;pointer-events:none}.laqui{fill:var(--acento,#8b7cf6);stroke:#fff;stroke-width:1.5}
 .ley-piso{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.85rem;margin-top:8px}.ley-piso i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 .abierto{stroke:#6cb6ff;stroke-width:3;stroke-dasharray:1 5;stroke-linecap:round;pointer-events:none}
 .hxt.salida{fill:#6cb6ff;font-size:13px}
@@ -558,6 +559,11 @@ select{font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--
 
   <section class="panel" id="panelPiso" hidden>
     <div class="eyebrow" id="tituloPiso">Mundo</div>
+    <div class="local-piso" id="localPiso" hidden>
+      <div class="eyebrow" id="tituloLocal"></div>
+      <div id="mapaLocal" aria-label="Plano del lugar: lo que ya vieron"></div>
+      <div class="ley-piso" id="leyLocal"></div>
+    </div>
     <div class="ciudad-piso" id="ciudadPiso" hidden>
       <div class="ciudad-nav" id="navCiudad"></div>
       <div id="mapaCiudad" aria-label="Plano de la ciudad: lo que conocen"></div>
@@ -1205,7 +1211,38 @@ function pintarPiso(p){
   $("mapaPiso").querySelectorAll("[data-hm]").forEach(el=>el.onclick=()=>{selPiso=el.dataset.hm;hexVista=el.dataset.hm;pintarPiso(p)});
   pintarLugaresPiso(p);
   pintarCiudad(p.ciudad);
+  pintarLocal(p.local);
   preseleccion();
+}
+// Plano local (DCL-047): el sitio donde están, con solo lo que ya vieron; lo demás queda negro.
+function pintarLocal(l){
+  $("localPiso").hidden=!l; if(!l){$("mapaLocal").innerHTML="";return}
+  const S=18, f=l.filas, alto=f.length, ancho=Math.max(...f.map(x=>x.length));
+  const color={".":"var(--hex-suelo)","#":"var(--hex-muro)","~":"var(--hex-dificil)","w":"var(--hex-agua)","o":"var(--hex-cob)","O":"var(--hex-cob)","P":"var(--hex-muro)","p":"var(--hex-suelo)"};
+  const usadas=[];f.forEach((fila,y)=>[...fila].forEach((ch,x)=>{if(ch!=="?")usadas.push([x,y])}));
+  const x0=Math.max(0,Math.min(...usadas.map(c=>c[0]))-1), y0=Math.max(0,Math.min(...usadas.map(c=>c[1]))-1);
+  const x1=Math.min(ancho-1,Math.max(...usadas.map(c=>c[0]))+1), y1=Math.min(alto-1,Math.max(...usadas.map(c=>c[1]))+1);
+  let svg="";
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const ch=f[y][x]||"?";if(ch==="?")continue;
+    svg+=`<rect x="${(x-x0)*S}" y="${(y-y0)*S}" width="${S}" height="${S}" class="lc" style="fill:${color[ch]||"#444"}"/>`;
+    if(ch==="o"||ch==="O")svg+=`<text x="${(x-x0)*S+S/2}" y="${(y-y0)*S+S*0.7}" class="lsim">${ch==="o"?"△":"▲"}</text>`;
+    if(ch==="P"||ch==="p")svg+=`<rect x="${(x-x0)*S+3}" y="${(y-y0)*S+S/2-2}" width="${S-6}" height="4" style="fill:#b07a3c;${ch==="p"?"opacity:.5":""}"/>`}
+  (l.salidas||[]).forEach(([x,y])=>{svg+=`<text x="${(x-x0)*S+S/2}" y="${(y-y0)*S+S*0.72}" class="hxt salida">⇲<title>sigue por aquí</title></text>`});
+  if(l.aqui){const [x,y]=l.aqui;svg+=`<circle cx="${(x-x0)*S+S/2}" cy="${(y-y0)*S+S/2}" r="${S*0.36}" class="laqui"><title>dónde están</title></circle>`}
+  const w=(x1-x0+1)*S,h=(y1-y0+1)*S;
+  $("tituloLocal").textContent=`${l.nombre} · casillas de ${l.casilla_pies||5} pies`;
+  $("mapaLocal").innerHTML=`<svg viewBox="0 0 ${w} ${h}" style="width:100%;max-width:${w*1.5}px;height:auto" role="img" aria-label="Plano del lugar">${svg}</svg>`;
+  const tiene=ch=>f.some(fila=>fila.includes(ch)), L=[], q=(fondo,t="")=>`<i style="background:${fondo};text-align:center;font-size:9px;line-height:12px">${t}</i>`;
+  L.push(`<span>${q("var(--hex-suelo)")}suelo</span>`);
+  if(tiene("#"))L.push(`<span>${q("var(--hex-muro)")}muro</span>`);
+  if(tiene("~"))L.push(`<span>${q("var(--hex-dificil)")}terreno difícil</span>`);
+  if(tiene("w"))L.push(`<span>${q("var(--hex-agua)")}agua (difícil)</span>`);
+  if(tiene("o"))L.push(`<span>${q("var(--hex-cob)","△")}obstáculo bajo</span>`);
+  if(tiene("O"))L.push(`<span>${q("var(--hex-cob)","▲")}obstáculo alto</span>`);
+  if(tiene("P")||tiene("p"))L.push(`<span>${q("#b07a3c")}puerta</span>`);
+  if((l.salidas||[]).length)L.push(`<span><i style="background:none;border:0;color:#6cb6ff">⇲</i>sigue por aquí</span>`);
+  L.push(`<span>${q("#05070a")}sin ver</span><span><i style="background:var(--acento,#8b7cf6);border-radius:50%"></i>dónde están</span>`);
+  $("leyLocal").innerHTML=L.join("");
 }
 // Los siete sectores del hex elegido (o del hex donde están): cada uno a unos 11 km del de al lado.
 function pintarSectores(p){
