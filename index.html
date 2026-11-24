@@ -737,8 +737,8 @@ function pintar(e){
   pintarConm();
 }
 // ---- Hoja de juego: conjuros, invocaciones y rasgos con el texto oficial completo, desplegables y filtrables ----
-const LIBRO="En el libro, sin preparar";
-const GRUPO_CORTO={"Preparados":"preparado","Conocidos":"conocido","Adicional, no cuenta como conocido":"siempre preparado",[LIBRO]:"en el libro"};
+const LIBRO="En el libro, sin preparar",LISTA="De la lista de clase, sin preparar",SIN_PREPARAR=new Set([LIBRO,LISTA]);
+const GRUPO_CORTO={"Preparados":"preparado","Conocidos":"conocido","Adicional, no cuenta como conocido":"siempre preparado",[LIBRO]:"en el libro",[LISTA]:"sin preparar"};
 const JUEGO_PJ={filtro:"todo",abiertos:new Set(),firma:null,panel:()=>$("panelJuego"),hoja:()=>hojaPJ,cab:()=>$("hjCab"),filtros:()=>$("hjFiltros"),buscar:()=>$("hjBuscar"),cuerpo:()=>$("hjCuerpo")};
 const JUEGO_PARTY={filtro:"todo",abiertos:new Set(),firma:null,panel:()=>$("juegoParty"),hoja:()=>partyHojas.find(h=>h.id===partyElegida)||null,cab:()=>$("pjCab"),filtros:()=>$("pjFiltros"),buscar:()=>$("pjBuscar"),cuerpo:()=>$("pjCuerpo")};
 function pintarJuego(){pintarJuegoEn(JUEGO_PJ)}
@@ -760,7 +760,7 @@ function pintarJuegoEn(x){
   const porNivel={};for(const s of conj)(porNivel[s.nivel??"?"]??=[]).push(s);
   for(const n of Object.keys(porNivel).sort((a,b)=>(+a)-(+b))){
     grupos.push(`<div class="hj-grupo"><div class="eyebrow">${n==="0"?"Trucos":"Conjuros de nivel "+esc(n)}</div><div class="hj-lista">`+porNivel[n].map(s=>item("c:"+s.nombre,s.nombre,
-      (s.concentracion?'<span class="chip on">C</span>':"")+(s.ritual?'<span class="chip on">R</span>':"")+(GRUPO_CORTO[s.grupo]?`<span class="chip${s.grupo===LIBRO?"":" on"}">${GRUPO_CORTO[s.grupo]}</span>`:"")+`<span class="chip">${esc(s.clase)}</span>`,
+      (s.concentracion?'<span class="chip on">C</span>':"")+(s.ritual?'<span class="chip on">R</span>':"")+(GRUPO_CORTO[s.grupo]?`<span class="chip${SIN_PREPARAR.has(s.grupo)?"":" on"}">${GRUPO_CORTO[s.grupo]}</span>`:"")+`<span class="chip">${esc(s.clase)}</span>`,
       esc([s.escuela,s.tiempo,s.alcance,s.duracion].filter(Boolean).join(" · ")),
       `<div class="hj-stats">${stat("Tiempo",s.tiempo)}${stat("Alcance",s.alcance)}${stat("Componentes",s.componentes_completos||s.componentes)}${stat("Duración",s.duracion)}${stat("Escuela",s.escuela)}${stat("Lista",s.clase+" · "+s.grupo)}</div>`+
       `<p class="hj-texto">${esc(s.texto||"Sin texto en el catálogo.")}</p>`+(s.superiores?`<p class="hj-texto"><b>A niveles superiores.</b> ${esc(s.superiores)}</p>`:"")+(s.mejora_truco&&!(s.texto||"").includes(s.mejora_truco)?`<p class="hj-texto"><b>Mejora del truco.</b> ${esc(s.mejora_truco)}</p>`:"")+
@@ -849,7 +849,7 @@ function pintarHoja(h=hojaPJ,P=$("papelHoja")){
   const ata=h.ataques.map(a=>`<tr><td>${esc(a.nombre)}${a.notas?`<div class="hp-sub" style="font-size:.78rem">${esc(a.notas.replace(/^; /,""))}</div>`:""}</td><td class="mano">${sg(a.bono)}</td><td class="mano">${esc(a.dano)}</td><td class="mano">${a.alcance?a.alcance+" p":"—"}</td></tr>`).join("");
   const cj=h.conjuros, esp=cj.espacios.map(e=>`<div class="hp-fila">${esc(e.nombre)} ${pips(e.quedan,e.max)}<em>${esc(e.recupera||"")}</em></div>`).join("");
   const niveles={};cj.lista.forEach(s=>{const k=s.nivel===0?"Trucos":s.nivel?`Nivel ${s.nivel}`:"Sin nivel";(niveles[k]=niveles[k]||[]).push(s)});
-  const conj=Object.keys(niveles).sort((a,b)=>(a==="Trucos"?-1:b==="Trucos"?1:a.localeCompare(b,"es",{numeric:true}))).map(k=>`<div class="hp-tit" style="font-size:.72rem;margin-top:6px">${esc(k)}</div>`+niveles[k].sort((a,b)=>(a.grupo===LIBRO)-(b.grupo===LIBRO)).map(s=>`<div class="hp-fila${s.grupo===LIBRO?" hp-libro":""}"><span>${esc(s.nombre)}${s.nivel!==0&&GRUPO_CORTO[s.grupo]&&s.grupo!=="Conocidos"?`<span class="hp-etq hp-grupo" title="${esc(s.grupo)}">${GRUPO_CORTO[s.grupo]}</span>`:""}${s.concentracion?'<span class="hp-etq" title="concentración">C</span>':""}${s.ritual?'<span class="hp-etq" title="ritual">R</span>':""}</span><em>${esc([s.escuela,s.tiempo,s.alcance,s.componentes].filter(Boolean).join(" · "))}</em></div>`).join("")).join("");
+  const conj=Object.keys(niveles).sort((a,b)=>(a==="Trucos"?-1:b==="Trucos"?1:a.localeCompare(b,"es",{numeric:true}))).map(k=>`<div class="hp-tit" style="font-size:.72rem;margin-top:6px">${esc(k)}</div>`+niveles[k].sort((a,b)=>SIN_PREPARAR.has(a.grupo)-SIN_PREPARAR.has(b.grupo)).map(s=>`<div class="hp-fila${SIN_PREPARAR.has(s.grupo)?" hp-libro":""}"><span>${esc(s.nombre)}${s.nivel!==0&&GRUPO_CORTO[s.grupo]&&s.grupo!=="Conocidos"?`<span class="hp-etq hp-grupo" title="${esc(s.grupo)}">${GRUPO_CORTO[s.grupo]}</span>`:""}${s.concentracion?'<span class="hp-etq" title="concentración">C</span>':""}${s.ritual?'<span class="hp-etq" title="ritual">R</span>':""}</span><em>${esc([s.escuela,s.tiempo,s.alcance,s.componentes].filter(Boolean).join(" · "))}</em></div>`).join("")).join("");
   const ras=h.rasgos.map(r=>`<div class="hp-rasgo"><b>${esc(r.nombre)}</b><small>${esc(r.origen)}</small>${r.usos?` <span style="float:right">${r.usos.unidad?`<span class="mano">${r.usos.quedan}/${r.usos.max} ${esc(r.usos.unidad)}</span>`:pips(r.usos.quedan,r.usos.max,"cuad")}</span>`:""}<p>${esc(r.texto)}</p></div>`).join("");
   const comp=Object.entries(h.competencias).filter(([,v])=>v.length).map(([k,v])=>`<div class="hp-fila"><b style="min-width:6.5em">${esc(k)}</b><span class="mano" style="text-align:left;font-size:1.1rem">${esc(v.join(", "))}</span></div>`).join("");
   P.innerHTML=`<div class="hp-cab"><div><div class="hp-nombre">${esc(h.nombre)}</div>
